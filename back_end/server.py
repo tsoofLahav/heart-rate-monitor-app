@@ -69,4 +69,4 @@ def process_video():
         return jsonify({'heart_rate': 0.0, 'peaks': []})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

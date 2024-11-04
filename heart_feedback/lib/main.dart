@@ -109,7 +109,7 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
 
     try {
       var request = http.MultipartRequest(
-          'POST', Uri.parse('https://heart-rate-monitor-app-2.onrender.com'));
+          'POST', Uri.parse('https://heart-rate-monitor-app-85do.onrender.com/process-video'));
       request.files.add(await http.MultipartFile.fromPath('video', videoFile.path));
 
       var response = await request.send();
