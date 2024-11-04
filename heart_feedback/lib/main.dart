@@ -92,7 +92,7 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
     final videoPath = '${directory.path}/heart_rate_video.mp4';
 
     while (_isRecording) {
-      await Future.delayed(Duration(seconds: 5));  // Wait for 5 seconds to gather a chunk of frames
+      await Future.delayed(Duration(seconds: 1));  // Change to 1 second
       XFile videoFile = await _controller!.stopVideoRecording();  // Stop temporarily to split
       await _controller!.startVideoRecording();  // Restart recording
 
@@ -108,9 +108,9 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
     _isProcessing = true;
 
     try {
-      var request = http.MultipartRequest(
-          'POST', Uri.parse('https://heart-rate-monitor-app.onrender.com/process-video'));
+      var request = http.MultipartRequest('POST', Uri.parse('https://heart-rate-monitor-app.onrender.com/process_video'));
       request.files.add(await http.MultipartFile.fromPath('video', videoFile.path));
+
 
       var response = await request.send();
       var responseBody = await response.stream.bytesToString();
