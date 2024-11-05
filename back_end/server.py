@@ -79,6 +79,8 @@ def process_video():
             heart_rate = 60.0 / combined_gap
         elif average_intra_gap > 0:
             heart_rate = 60.0 / average_intra_gap
+        elif inter_interval_gap > 0:
+            heart_rate = 60.0 / inter_interval_gap
         else:
             heart_rate = 0.0
 
