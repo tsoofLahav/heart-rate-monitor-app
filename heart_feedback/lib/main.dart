@@ -36,15 +36,15 @@ class HeartRateMonitor extends StatefulWidget {
 class _HeartRateMonitorState extends State<HeartRateMonitor> {
   CameraController? _controller;
   AudioPlayer _audioPlayer = AudioPlayer();
-  double _heartRate = 0.0;
+  double _displayedHeartRate = 0.0;
   bool _isRecording = false;
   Timer? _audioTimer;
   int _currentPeakIndex = 0;
   List<int> _peaks = [];
+  List<double> _bpmReadings = []; // Store the last 5 BPM readings
   List<DateTime> _allPeaksTimestamps = [];
   bool _isProcessing = false;
   bool _unstableReading = false;
-  Timer? _bpmTimer;
 
   @override
   void initState() {
@@ -92,7 +92,7 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
     final videoPath = '${directory.path}/heart_rate_video.mp4';
 
     while (_isRecording) {
-      await Future.delayed(Duration(seconds: 1));  // Change to 1 second
+      await Future.delayed(Duration(seconds: 1));  // Wait for 5 seconds to gather a chunk of frames
       XFile videoFile = await _controller!.stopVideoRecording();  // Stop temporarily to split
       await _controller!.startVideoRecording();  // Restart recording
 
@@ -111,15 +111,16 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
       var request = http.MultipartRequest('POST', Uri.parse('https://heart-rate-monitor-app.onrender.com/process_video'));
       request.files.add(await http.MultipartFile.fromPath('video', videoFile.path));
 
-
       var response = await request.send();
       var responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
         var result = jsonDecode(responseBody);
+        double receivedHeartRate = result['heart_rate'] ?? 0.0;
+
         setState(() {
-          _peaks = List<int>.from(result['peaks']);  // Use the peaks sent by backend
-          _heartRate = result['heart_rate'];
+          _peaks = List<int>.from(result['peaks']);
+          _updateHeartRate(receivedHeartRate); // Update displayed heart rate with average of last 5 BPM
           _playAudioByPeaks();  // Play sounds for detected beats
         });
       } else {
@@ -131,6 +132,22 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
     } finally {
       _isProcessing = false;
     }
+  }
+
+  void _updateHeartRate(double newHeartRate) {
+    // Add the new heart rate to the list of BPM readings
+    _bpmReadings.add(newHeartRate);
+
+    // Keep only the last 5 readings
+    if (_bpmReadings.length > 5) {
+      _bpmReadings.removeAt(0);
+    }
+
+    // Calculate the average BPM from the last 5 readings
+    double averageBPM = _bpmReadings.reduce((a, b) => a + b) / _bpmReadings.length;
+
+    // Update displayed heart rate
+    _displayedHeartRate = averageBPM;
   }
 
   void _playAudioByPeaks() {
@@ -180,7 +197,7 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
               Center(child: Text('Initializing camera...')),
             SizedBox(height: 20),
             Text(
-              'Heart Rate: ${_heartRate.toStringAsFixed(2)} BPM',
+              'Heart Rate: ${_displayedHeartRate.toStringAsFixed(2)} BPM',
               style: TextStyle(fontSize: 24),
             ),
             if (_unstableReading)
