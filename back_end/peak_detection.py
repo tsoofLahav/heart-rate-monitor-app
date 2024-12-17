@@ -1,5 +1,5 @@
 import numpy as np
-from utils.bpm_and_hrv import bpm_and_hrv_calculator
+from bpm_and_hrv import bpm_and_hrv_calculator
 
 gap = 0  # gap from last beat of the last video
 hrv = 1

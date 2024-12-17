@@ -1,7 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import request, jsonify
 import numpy as np
 import cv2
-from utils.peak_detection import peaks_detection
+from peak_detection import peaks_detection
 
 
 def setup_video_route(app):

@@ -7,7 +7,7 @@ class BackendService {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://heart-rate-monitor-app.onrender.com/process_video'),
+        Uri.parse('http://127.0.0.1:5000/process_video'),
       );
       request.files.add(await http.MultipartFile.fromPath('video', videoFile.path));
 

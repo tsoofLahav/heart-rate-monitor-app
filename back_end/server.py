@@ -1,5 +1,5 @@
 from flask import Flask
-from routes.video_route import setup_video_route
+from video_route import setup_video_route
 
 # from routes.status_route import setup_status_routes
 
