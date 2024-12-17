@@ -44,7 +44,7 @@ def peaks_detection(intensities, fps):
 
     # Damage control 1: too much noise
     if len(peaks_in_time) > 3:
-        return [-1], -1, -1
+        return [-1], -1, -1, False
 
     # Add or remove peak in case of peak landing on gap between videos
     if len(peaks_in_time) != 0:
