@@ -27,9 +27,16 @@ def setup_video_route(app):
                 intensities.append(np.mean(gray))
             cap.release()
 
-            peaks, bpm, hrv = peaks_detection(intensities, fps)
+            peaks, bpm, hrv, startnew = peaks_detection(intensities, fps)
+            differences = []
 
-            return jsonify({'heart_rate': bpm, 'average_gap': hrv, 'peaks': peaks.tolist()})
+            if peaks != [-1]:
+                peaks.insert(0, 0)
+                peaks.append(1)
+                for i in range(len(peaks) - 1):
+                    differences.append(peaks[i+1] - peaks[i])
+
+                return jsonify({'heart_rate': bpm, 'average_gap': hrv, 'peaks': differences, 'startNew': startnew})
 
         except Exception as e:
             print(f"Error processing signal: {e}")

@@ -3,6 +3,7 @@ from utils.bpm_and_hrv import bpm_and_hrv_calculator
 
 gap = 0  # gap from last beat of the last video
 hrv = 1
+newStart = False
 
 
 # Moving average filter
@@ -26,10 +27,11 @@ def detect_peaks(signal, dynamic_threshold):
 
 
 def peaks_detection(intensities, fps):
-    global gap, hrv
+    global gap, hrv, newStart
     # Apply moving average filter
     signal = np.array(intensities)
     filtered_signal = moving_average_filter(signal, window_size=3)
+    newStart = False
 
     # Calculate dynamic threshold and detect peaks
     baseline = np.mean(filtered_signal)
@@ -49,11 +51,13 @@ def peaks_detection(intensities, fps):
         if gap + peaks_in_time[0] < 0.25:
             del peaks_in_time[0]
         elif gap + peaks_in_time[0] > 2 * hrv:
+            newStart = True
             peaks_in_time.insert(0, 0)
         gap = 1 - peaks_in_time[-1]
     else:
         if 1 + gap > 2 * hrv:
             peaks_in_time.insert(0, 0)
+            newStart = True
             gap = 1
         else:
             gap += 1
@@ -64,4 +68,4 @@ def peaks_detection(intensities, fps):
         bpm, hrv = -1
     else:
         bpm, hrv = bpm_and_hrv_calculator(peaks_in_time)
-    return peaks_in_time, bpm, hrv
+    return peaks_in_time, bpm, hrv, newStart
