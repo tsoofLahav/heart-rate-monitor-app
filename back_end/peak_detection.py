@@ -36,7 +36,7 @@ def peaks_detection(intensities, fps):
     # Calculate dynamic threshold and detect peaks
     baseline = np.mean(filtered_signal)
     std_dev = np.std(filtered_signal)
-    dynamic_threshold = baseline + std_dev*1.5
+    dynamic_threshold = baseline*0.5
     peaks = detect_peaks(filtered_signal, dynamic_threshold)
 
     # Convert peaks to time values based on fps
