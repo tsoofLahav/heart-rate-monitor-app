@@ -9,9 +9,9 @@ The purpose of the app is to serve as a tool in experiments conducted at Amir Am
 ## Technologies and Tools
 ### Backend:
 Written in Python, using Flask as the framework.
-Using Render for cloud hosting.
+Using Azure for cloud hosting.
 ### Frontend:
 Written in Dart, using Flutter as the framework.
 Deployed using Xcode and an Apple developer account.
 ## Setup
-To use this app, you must have a basic Render account and an Apple developer account, which allows you to deploy the app on up to 100 devices.
+To use this app, you must have a basic Azure account and an Apple developer account, which allows you to deploy the app on up to 100 devices.
