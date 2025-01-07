@@ -5,8 +5,14 @@ import 'dart:async';
 class AudioService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Queue<int> _peakQueue = Queue<int>();
+  bool _isPlaying = false; // Prevent multiple starts
+
+  bool get isPlaying => _isPlaying; // Public getter
 
   Future<void> playSoundInLoop() async {
+    if (_isPlaying) return; // Avoid starting multiple loops
+    _isPlaying = true;
+
     while (true) {
       if (_peakQueue.isNotEmpty) {
         int waitTime = _peakQueue.removeFirst();

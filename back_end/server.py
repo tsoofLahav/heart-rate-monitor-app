@@ -8,6 +8,7 @@ app = Flask(__name__)
 setup_video_route(app)
 
 
+
 # Health check route
 @app.route('/', methods=['GET'])
 def index():

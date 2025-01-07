@@ -10,6 +10,10 @@ def setup_video_route(app):
         try:
             # Receive video file from request
             file = request.files['video']
+            if file:
+                print(f"Received file: {file.filename}, Content-Type: {file.content_type}")
+            else:
+                print("No video file received.")
             video_path = './temp_video.mp4'
             file.save(video_path)
 
