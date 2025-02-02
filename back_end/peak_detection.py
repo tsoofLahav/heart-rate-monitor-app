@@ -1,9 +1,7 @@
 import numpy as np
-from bpm_and_hrv import bpm_and_hrv_calculator
 
-gap = 0  # gap from last beat of the last video
-hrv = 1
-newStart = False
+extra_beat = False
+missing_beat = False
 
 
 # Moving average filter
@@ -26,46 +24,88 @@ def detect_peaks(signal, dynamic_threshold):
     return np.array(peaks)
 
 
-def peaks_detection(intensities, fps):
-    global gap, hrv, newStart
+# Convert peaks to time gaps
+def convert_peaks_to_timegaps(peaks, fps, total_duration, time):
+    if len(peaks) == 0:
+        return np.array([total_duration])
+
+    time_gaps = [peaks[0] / fps]
+
+    if len(peaks) > 1:
+        time_gaps.extend(np.diff(peaks) / fps)
+
+    time_gaps.append((time - peaks[-1]) / fps)
+    return np.array(time_gaps)
+
+
+# Detect duplicate beats
+def detect_duplicate_beats(fps, peaks):
+    global extra_beat
+    if len(peaks) > 0 and peaks[0] < fps / 15 and extra_beat:
+        peaks = peaks[1:]  # Remove the first peak if it is too close to the start and extra_beat is flagged
+
+    if len(peaks) > 0 and (fps - peaks[-1]) < fps / 15:
+        peaks = peaks[:-1]  # Remove the last peak if it is too close to the end
+        extra_beat = True
+    else:
+        extra_beat = False
+
+    return peaks
+
+
+# Detect missing beats
+def detect_missing_beats(time_gaps, ave_gap, new_start):
+    global missing_beat
+    if len(time_gaps) > 0 and time_gaps[0] >= ave_gap and missing_beat:
+        new_start = True
+
+    if len(time_gaps) > 0 and time_gaps[-1] >= ave_gap:
+        missing_beat = True
+    else:
+        missing_beat = False
+
+    return new_start
+
+
+# Detect unstable readings
+def detect_unstable_reading(filtered_signal, std_threshold=1.5):
+    std_dev = np.std(filtered_signal)
+    baseline = np.mean(filtered_signal)
+
+    # Check if the signal's standard deviation is too high compared to the baseline
+    if std_dev > std_threshold * baseline:
+        return True  # Unstable reading detected
+    return False
+
+
+# Detect pulse
+def detect_pulse(intensities, fps, ave_gap):
+    global extra_beat, missing_beat
+
     # Apply moving average filter
     signal = np.array(intensities)
     filtered_signal = moving_average_filter(signal, window_size=3)
-    newStart = False
+    new_start = extra_beat
+
+    # Check for unstable readings
+    not_reading = detect_unstable_reading(filtered_signal)
+
+    if not_reading:
+        return not_reading, [], False
 
     # Calculate dynamic threshold and detect peaks
     baseline = np.mean(filtered_signal)
-    std_dev = np.std(filtered_signal)
-    dynamic_threshold = baseline*0.5
+    dynamic_threshold = baseline * 0.5
     peaks = detect_peaks(filtered_signal, dynamic_threshold)
+    total_duration = len(signal) / fps
 
-    # Convert peaks to time values based on fps
-    peaks_in_time = [peak / fps for peak in peaks]
+    # Detect duplicate beats
+    peaks = detect_duplicate_beats(fps, peaks)
 
-    # Damage control 1: too much noise
-    if len(peaks_in_time) > 3:
-        return [-1], -1, -1, False
+    # Convert peaks to time gaps
+    time_gaps = convert_peaks_to_timegaps(peaks, fps, total_duration, len(signal))
 
-    # Add or remove peak in case of peak landing on gap between videos
-    if len(peaks_in_time) != 0:
-        if gap + peaks_in_time[0] < 0.25:
-            del peaks_in_time[0]
-        elif gap + peaks_in_time[0] > 2 * hrv:
-            newStart = True
-            peaks_in_time.insert(0, 0)
-        gap = 1 - peaks_in_time[-1]
-    else:
-        if 1 + gap > 2 * hrv:
-            peaks_in_time.insert(0, 0)
-            newStart = True
-            gap = 1
-        else:
-            gap += 1
+    # Detect missing beats
+    new_start = detect_missing_beats(time_gaps, ave_gap, new_start)
 
-    # Damage control 2: pulse is not detected for two seconds
-    if gap > 2:
-        peaks_in_time = [-1]
-        bpm, hrv = -1
-    else:
-        bpm, hrv = bpm_and_hrv_calculator(peaks_in_time)
-    return peaks_in_time, bpm, hrv, newStart
+    return not_reading, time_gaps, new_start
