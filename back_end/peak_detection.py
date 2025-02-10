@@ -6,7 +6,7 @@ missing_beat = False
 
 # Moving average filter
 def moving_average_filter(data, window_size):
-    return np.convolve(data, np.ones(window_size) / window_size, mode='valid')
+    return np.convolve(data, np.ones(window_size) / window_size, mode='same')
 
 
 # Peak detection function
@@ -68,14 +68,16 @@ def detect_missing_beats(time_gaps, ave_gap, new_start):
 
 
 # Detect unstable readings
-def detect_unstable_reading(filtered_signal, std_threshold=1.5):
-    std_dev = np.std(filtered_signal)
-    baseline = np.mean(filtered_signal)
+def detect_unstable_reading(filtered_signal, baseline, std_dev, std_threshold=1.5):
+    #  If all values are (near) zero, mark as unstable
+    if np.all(filtered_signal == 0) or baseline == 0:
+        return True
 
-    # Check if the signal's standard deviation is too high compared to the baseline
+    #  If standard deviation is too high, mark as unstable
     if std_dev > std_threshold * baseline:
-        return True  # Unstable reading detected
-    return False
+        return True
+
+    return False  # Otherwise, signal is stable
 
 
 # Detect pulse
@@ -87,15 +89,18 @@ def detect_pulse(intensities, fps, ave_gap):
     filtered_signal = moving_average_filter(signal, window_size=3)
     new_start = extra_beat
 
-    # Check for unstable readings
-    not_reading = detect_unstable_reading(filtered_signal)
+    #  Compute baseline & std_dev **once**
+    baseline = np.mean(filtered_signal)
+    std_dev = np.std(filtered_signal)
+
+    #  Check for unstable readings **using precomputed values**
+    not_reading = detect_unstable_reading(filtered_signal, baseline, std_dev)
 
     if not_reading:
         return not_reading, [], False
 
-    # Calculate dynamic threshold and detect peaks
-    baseline = np.mean(filtered_signal)
-    dynamic_threshold = baseline * 0.5
+    #  Compute dynamic threshold using precomputed baseline & std_dev
+    dynamic_threshold = baseline + (0.5 * std_dev)
     peaks = detect_peaks(filtered_signal, dynamic_threshold)
     total_duration = len(signal) / fps
 
@@ -109,3 +114,4 @@ def detect_pulse(intensities, fps, ave_gap):
     new_start = detect_missing_beats(time_gaps, ave_gap, new_start)
 
     return not_reading, time_gaps, new_start
+

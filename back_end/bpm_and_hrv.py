@@ -1,6 +1,6 @@
 import numpy as np
 
-ave_gap = 1
+
 class BPMAndHRVCalculator:
     def __init__(self):
         self.interval_list = []  # Stores the intervals for computation
@@ -11,12 +11,11 @@ class BPMAndHRVCalculator:
         self.round_counter = 0
 
     def calculate(self, intervals_list, new_start, not_reading):
-        global ave_gap
         if not_reading:
             self.reset()
             return -1, -1, -1
 
-        if not new_start and self.interval_list:
+        if not new_start:
             # Combine the last interval of the current list with the first of the new input
             self.interval_list[-1] += intervals_list[0]
             self.interval_list.extend(intervals_list[1:])
@@ -38,10 +37,10 @@ class BPMAndHRVCalculator:
             hrv = np.std(self.interval_list) if self.interval_list else 0
 
             # Start a new list for the next rounds
-            self.interval_list = [intervals_list[-1]] if not new_start else []
+            self.interval_list = [intervals_list[-1]]
             self.round_counter = 0
 
             return bpm, hrv, ave_gap
 
         # If not a computation round, return -1 to indicate no new values
-        return -1, -1, ave_gap
+        return -1, -1, -1

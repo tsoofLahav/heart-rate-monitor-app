@@ -52,10 +52,15 @@ def setup_video_route(app):
             # Perform peak detection
             not_reading, intervals_list, new_start = detect_pulse(intensities, fps, ave_gap)
 
-            bpm, hrv, ave_gap = bpm_hrv_calculator.calculate(intervals_list, new_start, not_reading)
+            bpm, hrv, local_ave_gap = bpm_hrv_calculator.calculate(intervals_list, new_start, not_reading)
+
+            if local_ave_gap is not -1:
+                ave_gap = local_ave_gap
+
+            intervals = intervals_list.tolist()
 
             return jsonify(
-                {'not_reading': not_reading, 'heart_rate': bpm, 'average_gap': ave_gap, 'intervals': intervals_list,
+                {'not_reading': not_reading, 'heart_rate': bpm, 'average_gap': ave_gap, 'intervals': intervals,
                  'startNew': new_start})
 
         except Exception as e:
