@@ -3,11 +3,11 @@ import numpy as np
 
 class BPMAndHRVCalculator:
     def __init__(self):
-        self.interval_list = []  # Stores the intervals for computation
+        self.interval_list = [1]  # Stores the intervals for computation
         self.round_counter = 0  # Tracks the number of input rounds
 
     def reset(self):
-        self.interval_list = []
+        self.interval_list = [1]
         self.round_counter = 0
 
     def calculate(self, intervals_list, new_start, not_reading):
