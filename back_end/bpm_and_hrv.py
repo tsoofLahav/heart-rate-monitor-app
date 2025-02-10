@@ -1,7 +1,8 @@
 import numpy as np
 
-
+ave_gap = 1
 class BPMAndHRVCalculator:
+    global ave_gap
     def __init__(self):
         self.interval_list = []  # Stores the intervals for computation
         self.round_counter = 0  # Tracks the number of input rounds
@@ -43,4 +44,4 @@ class BPMAndHRVCalculator:
             return bpm, hrv, ave_gap
 
         # If not a computation round, return -1 to indicate no new values
-        return -1, -1, -1
+        return -1, -1, ave_gap

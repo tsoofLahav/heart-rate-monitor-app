@@ -1,83 +1,106 @@
-// Import necessary packages and services
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
-import 'camera_service.dart';
 import 'backend_service.dart';
 import 'audio_service.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 
-// Define the main stateful widget for heart rate monitoring
 class HeartRateMonitor extends StatefulWidget {
   @override
   _HeartRateMonitorState createState() => _HeartRateMonitorState();
 }
 
 class _HeartRateMonitorState extends State<HeartRateMonitor> {
-  // Initialize services for camera, backend processing, and audio feedback
-  final CameraService _cameraService = CameraService();
   final BackendService _backendService = BackendService();
   final AudioService _audioService = AudioService();
 
-  // Variables for camera control, heart rate display, status messages, and recording state
-  CameraController? _cameraController;
   double _displayedHeartRate = 0.0;
   String _statusMessage = "";
   bool _isRecording = false;
-  final List<File> _videoQueue = [];
+  final List<String> _videoQueue = [];
   final Object _queueLock = Object();
+
+  CameraController? _cameraController;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
+    _initializeCamera();
   }
 
-  // Initialize the camera
-  Future<void> _initialize() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    List<CameraDescription> cameras = await availableCameras();
-    _cameraController = await _cameraService.initializeCamera(cameras);
-    if (_cameraController?.value.isInitialized == true) {
+  /// **Initialize the Camera with Flash**
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    if (cameras.isNotEmpty) {
+      _cameraController = CameraController(cameras[0], ResolutionPreset.low);
+      await _cameraController!.initialize();
+      await _cameraController!.setFlashMode(FlashMode.torch); // Enable Flash
       setState(() {});
+    } else {
+      print("No camera available.");
     }
   }
 
-  // Continuously records short video clips for heart rate analysis
-  Future<void> _recordLoop() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+  /// **Start Monitoring (Continuous Recording & Processing)**
+  void _startMonitoring() async {
+    if (_isRecording || _cameraController == null) return;
     _isRecording = true;
-    
-    final directory = await getApplicationDocumentsDirectory();
+
+    _recordLoop(); // Start continuous recording
+    _processingLoop(); // Start processing loop
+  }
+
+  /// **Stop Monitoring**
+  void _stopMonitoring() {
+    if (!_isRecording) return;
+    _isRecording = false;
+
+    // Stop recording if running
+    _cameraController?.stopVideoRecording();
+  }
+
+  /// **Continuous Recording Without Stopping**
+  Future<void> _recordLoop() async {
+    if (_cameraController == null) return;
+
     while (_isRecording) {
-      final videoPath = '${directory.path}/heart_rate_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      await _cameraController!.startVideoRecording();
-      await Future.delayed(Duration(seconds: 1));
-      XFile videoFile = await _cameraController!.stopVideoRecording();
-      
-      _safeQueueUpdate(() {
-        _videoQueue.add(File(videoFile.path).copySync(videoPath));
-      });
+      final directory = await getTemporaryDirectory();
+      final filePath = '${directory.path}/video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      try {
+        await _cameraController!.startVideoRecording();
+        await Future.delayed(Duration(seconds: 1)); // Capture 1-second slices
+        final videoFile = await _cameraController!.stopVideoRecording();
+
+        _safeQueueUpdate(() {
+          _videoQueue.add(videoFile.path);
+        });
+
+        print("Video added to queue: ${videoFile.path}");
+      } catch (e) {
+        print("Recording error: $e");
+      }
     }
   }
 
-  // Processes recorded videos by sending them to the backend for analysis
+  /// **Process Recorded Videos (Send to Backend)**
   Future<void> _processingLoop() async {
     while (_isRecording) {
-      File? videoFile;
-      
+      String? videoPath;
+
       _safeQueueUpdate(() {
         if (_videoQueue.isNotEmpty) {
-          videoFile = _videoQueue.removeAt(0);
+          videoPath = _videoQueue.removeAt(0);
         }
       });
-      
-      if (videoFile != null) {
-        var result = await _backendService.sendVideoToBackend(videoFile!);
+
+      if (videoPath != null) {
+        print("File size: ${File(videoPath as String).lengthSync()} bytes");
+        var result = await _backendService.sendVideoToBackend(File(videoPath as String));
         if (result != null) {
           _audioService.processData(result['not_reading'], result['ave_gap'], result['intervals_list'], result['new_start']);
-          
+
           setState(() {
             if (result['not_reading']) {
               _statusMessage = "Unstable reading, place finger on camera";
@@ -92,37 +115,22 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
           });
         }
       } else {
-        await Future.delayed(Duration(milliseconds: 100));
+        await Future.delayed(Duration(milliseconds: 500)); // Avoid unnecessary looping
       }
     }
   }
 
-  // Thread-safe method for updating the video queue
+  /// **Thread-Safe Video Queue Update**
   void _safeQueueUpdate(void Function() action) {
     synchronized(_queueLock, action);
   }
 
-  // Starts heart rate monitoring by initiating recording and processing loops
-  void _startMonitoring() {
-    if (_isRecording) return;
-    _isRecording = true;
-    _recordLoop();
-    _processingLoop();
-  }
-
-  // Stops heart rate monitoring
-  void _stopMonitoring() {
-    if (!_isRecording) return;
-    _isRecording = false;
-  }
-
   @override
   void dispose() {
-    _cameraService.dispose();
+    _cameraController?.dispose();
     super.dispose();
   }
 
-  // UI layout for the heart rate monitor
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,7 +157,7 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
   }
 }
 
-// Helper function for synchronizing queue updates
+// **Helper function for synchronizing queue updates**
 void synchronized(Object lock, void Function() action) {
   return action();
 }

@@ -8,7 +8,7 @@ from bpm_and_hrv import BPMAndHRVCalculator
 bpm_hrv_calculator = BPMAndHRVCalculator()
 from peak_detection import detect_pulse
 
-ave_gap = None
+ave_gap = 1
 
 
 def setup_video_route(app):

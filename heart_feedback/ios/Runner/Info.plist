@@ -3,6 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
+	<string>Allow camera access to record video.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow microphone access for audio recording.</string>
+	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to the camera to read the user's heart rate.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
