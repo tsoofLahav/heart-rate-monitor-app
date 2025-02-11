@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'monitor_screen.dart';
+import 'selection_screen.dart'; // Import SelectionScreen
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,7 +10,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: HeartRateMonitor(),
+      debugShowCheckedModeBanner: false,
+      home: SelectionScreen(), // Redirect to selection screen first
     );
   }
 }

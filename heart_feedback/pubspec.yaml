@@ -39,6 +39,8 @@ dependencies:
   audioplayers: ^6.1.0
   http: ^1.2.2
   path_provider: ^2.1.4
+  flutter_soloud: ^2.1.7
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +52,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^3.0.0
+  ffigen: ^9.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -62,7 +65,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-  - assets/boom.mp3
+  - assets/boom.wav
+  - assets/video.mp4
 
   # To add assets to your application, add an assets section, like this:
   # assets:

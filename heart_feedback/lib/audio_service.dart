@@ -1,83 +1,130 @@
-import 'package:audioplayers/audioplayers.dart';
-import 'dart:collection';
 import 'dart:async';
+import 'dart:collection';
+import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart'; // For rootBundle
+import 'dart:io';
 
 class AudioService {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final Queue<int> _intervalQueue = Queue<int>();
+  final SoLoud _soloud = SoLoud.instance;
+  AudioSource? _source;
+  final Queue<double> _waitQueue = Queue<double>();
   bool _isPlaying = false;
-  double _aveGap = 1.0; // Global average gap (seconds)
-  int _delayTime = 0; // Global delay time (milliseconds)
-  final _queueLock = Object(); // Lock object to ensure atomic updates
+  double _oldAveGap = 1.0;
+  double _newAveGap = 1.0;
+  double _gapDiff = 0.0;
+  late String _soundFilePath; // Store path for reuse
 
-  bool get isPlaying => _isPlaying;
+  /// **Initialize SoLoud and load audio**
+  Future<void> init() async {
+    print("[AudioService] Initializing SoLoud...");
 
-  Future<void> _playLoop() async {
-    if (_isPlaying) return;
-    _isPlaying = true;
-
-    while (true) {
-      int? waitTime;
-      
-      synchronized(_queueLock, () {
-        if (_intervalQueue.isNotEmpty) {
-          waitTime = _intervalQueue.removeFirst();
-        } else {
-          _isPlaying = false;
-          return;
-        }
-      });
-      
-      if (waitTime != null) {
-        await _audioPlayer.play(AssetSource('boom.mp3'));
-        await Future.delayed(Duration(milliseconds: waitTime!));
+    if (!SoLoud.instance.isInitialized) {
+      try {
+        await SoLoud.instance.init();
+        print("[AudioService] SoLoud initialized successfully.");
+      } catch (e) {
+        print("[AudioService] ERROR: Failed to initialize SoLoud - $e");
+        return;
       }
+    }
+
+    try {
+      // Check if the asset exists
+      await rootBundle.load('assets/boom.wav');
+      print("[AudioService] Asset found in bundle.");
+
+      // Copy asset to application documents directory and get its path
+      _soundFilePath = await _copyAssetToAppDocs('assets/boom.wav');
+
+      // Load sound from file instead of asset
+      _source = await _soloud.loadFile(_soundFilePath);
+      if (_source == null) {
+        print("[AudioService] ERROR: Failed to load sound file.");
+      } else {
+        print("[AudioService] Sound file loaded successfully from app documents storage.");
+      }
+    } catch (e) {
+      print("[AudioService] ERROR: Exception while loading sound - $e");
     }
   }
 
-  void processData(bool unstableReading, double newAveGap, List<double> intervals, bool newStart) {
-    if (unstableReading) {
-      synchronized(_queueLock, () {
-        _intervalQueue.clear();
-        _isPlaying = false;
-      });
+  /// **Copy asset file to application documents directory and return its path**
+  Future<String> _copyAssetToAppDocs(String assetPath) async {
+    final appDocsDir = await getApplicationDocumentsDirectory();
+    final appDocsPath = '${appDocsDir.path}/boom.wav';
+    final file = File(appDocsPath);
+
+    if (!await file.exists()) {
+      final byteData = await rootBundle.load(assetPath);
+      await file.writeAsBytes(byteData.buffer.asUint8List(), flush: true);
+      print("[AudioService] Copied asset to $appDocsPath.");
+    }
+
+    return appDocsPath;
+  }
+
+  /// **Process incoming heart rate data and schedule playback**
+  void processData(bool notReading, double averageGap, List<double> intervals, bool newStart) {
+    if (_source == null) {
+      print("[AudioService] WARNING: Audio source is null. Cannot play.");
       return;
     }
 
-    synchronized(_queueLock, () {
-      if (newAveGap != -1) {
-        double gapDifference = (newAveGap - _aveGap) * 1000;
-        _aveGap = newAveGap;
-        List<int> tempList = _intervalQueue.toList();
-        for (int i = 0; i < tempList.length; i++) {
-          tempList[i] += gapDifference.toInt();
-        }
-        _intervalQueue
-          ..clear()
-          ..addAll(tempList);
-      }
-    });
+    if (notReading) {
+      _waitQueue.clear();
+      _isPlaying = false;
+      return;
+    }
 
-    List<int> newIntervals = intervals.map((i) => (i * 1000).toInt()).toList();
+    if (averageGap != 1.0) {
+      _oldAveGap = _newAveGap;
+      _newAveGap = averageGap;
+      _gapDiff = (_newAveGap - _oldAveGap);
+    }
 
-    synchronized(_queueLock, () {
-      if (newStart || _intervalQueue.isEmpty) {
-        _intervalQueue.addAll(newIntervals);
-        if (_intervalQueue.isNotEmpty) {
-          int startDelay = ((_aveGap * 5 - (1 + _delayTime / 1000)) * 1000).toInt();
-          Future.delayed(Duration(milliseconds: startDelay), _playLoop);
-        }
-      } else {
-        int lastValue = _intervalQueue.isNotEmpty ? _intervalQueue.last : 0;
-        _intervalQueue.addAll(newIntervals.map((interval) => lastValue + interval));
-      }
-    });
+    if (newStart && _waitQueue.isNotEmpty) {
+      double lastValue = _waitQueue.removeLast();
+      _waitQueue.add(lastValue + intervals[0]);
+      _waitQueue.addAll(intervals.sublist(1));
+    } else {
+      _waitQueue.addAll(intervals);
+    }
 
-    if (!_isPlaying) _playLoop();
+    if (!_isPlaying) {
+      _isPlaying = true;
+      _playLoop().then((_) => _isPlaying = false);
+    }
   }
-}
 
-void synchronized(Object lock, void Function() action) {
-  // Ensures atomic execution of actions on shared resources
-  return action();
+  /// **Audio playback loop**
+  Future<void> _playLoop() async {
+    if (_source == null) {
+      print("[AudioService] ERROR: Cannot play, source is null.");
+      return;
+    }
+
+    while (_waitQueue.isNotEmpty) {
+      SoundHandle handle = await _soloud.play(_source!, volume: 1.0);
+      print("[AudioService] Playing sound, handle: ${handle.id}");
+
+      if (handle.id == 0) {
+        print("[AudioService] ERROR: SoLoud failed to play sound.");
+        return;
+      }
+
+
+      double waitTime = _waitQueue.removeFirst() + _gapDiff;
+      await Future.delayed(Duration(milliseconds: (waitTime * 1000).toInt()));
+    }
+  }
+
+  /// **Dispose SoLoud and stop playing sounds**
+  Future<void> dispose() async {
+    if (_source != null) {
+      await _soloud.disposeSource(_source!);
+      _source = null;
+    }
+    SoLoud.instance.deinit;
+  }
 }

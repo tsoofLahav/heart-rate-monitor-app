@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'backend_service.dart';
 import 'audio_service.dart';
-import 'dart:async';
+import 'video_service.dart'; // Import VideoService
 import 'dart:io';
-import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 
 class HeartRateMonitor extends StatefulWidget {
+  final bool useAudioService;
+
+  HeartRateMonitor({required this.useAudioService}); // Accept flag
+
   @override
   _HeartRateMonitorState createState() => _HeartRateMonitorState();
 }
@@ -14,120 +17,104 @@ class HeartRateMonitor extends StatefulWidget {
 class _HeartRateMonitorState extends State<HeartRateMonitor> {
   final BackendService _backendService = BackendService();
   final AudioService _audioService = AudioService();
+  static const MethodChannel _channel = MethodChannel('video_recorder');
 
-  double _displayedHeartRate = 0.0;
   String _statusMessage = "";
   bool _isRecording = false;
+  int bpm = 0;
   final List<String> _videoQueue = [];
-  final Object _queueLock = Object();
-
-  CameraController? _cameraController;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
-  }
-
-  /// **Initialize the Camera with Flash**
-  Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isNotEmpty) {
-      _cameraController = CameraController(cameras[0], ResolutionPreset.low);
-      await _cameraController!.initialize();
-      await _cameraController!.setFlashMode(FlashMode.torch); // Enable Flash
-      setState(() {});
-    } else {
-      print("No camera available.");
+    if (widget.useAudioService) {
+      _initializeAudio();
     }
+    _listenForVideoFiles();
   }
 
-  /// **Start Monitoring (Continuous Recording & Processing)**
+  Future<void> _initializeAudio() async {
+    await _audioService.init();
+  }
+
+  /// **Listen for file paths from iOS**
+  void _listenForVideoFiles() {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == "videoSaved") {
+        _videoQueue.add(call.arguments as String);
+        _processNextVideo();
+      }
+    });
+  }
+
+  /// **Start Recording**
   void _startMonitoring() async {
-    if (_isRecording || _cameraController == null) return;
+    if (_isRecording) return;
     _isRecording = true;
-
-    _recordLoop(); // Start continuous recording
-    _processingLoop(); // Start processing loop
+    await _channel.invokeMethod("startRecording");
   }
 
-  /// **Stop Monitoring**
-  void _stopMonitoring() {
+  /// **Stop Recording**
+  void _stopMonitoring() async {
     if (!_isRecording) return;
     _isRecording = false;
-
-    // Stop recording if running
-    _cameraController?.stopVideoRecording();
+    await _channel.invokeMethod("stopRecording");
   }
 
-  /// **Continuous Recording Without Stopping**
-  Future<void> _recordLoop() async {
-    if (_cameraController == null) return;
+  /// **Process Video Queue (Send to Backend)**
+  Future<void> _processNextVideo() async {
+    if (_videoQueue.isEmpty || !_isRecording) return;
 
-    while (_isRecording) {
-      final directory = await getTemporaryDirectory();
-      final filePath = '${directory.path}/video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+    String videoPath = _videoQueue.removeAt(0);
+    String correctedPath = Uri.parse(videoPath).toFilePath();
 
-      try {
-        await _cameraController!.startVideoRecording();
-        await Future.delayed(Duration(seconds: 1)); // Capture 1-second slices
-        final videoFile = await _cameraController!.stopVideoRecording();
+    var result = await _backendService.sendVideoToBackend(File(correctedPath));
 
-        _safeQueueUpdate(() {
-          _videoQueue.add(videoFile.path);
-        });
+    if (result == null) return;
 
-        print("Video added to queue: ${videoFile.path}");
-      } catch (e) {
-        print("Recording error: $e");
-      }
+    double averageGap = (result['ave_gap'] as num?)?.toDouble() ?? 1.0;
+    double heartRate = (result['heart_rate'] as num?)?.toDouble() ?? -1.0;
+    List<double> intervals = (result['intervals_list'] as List?)?.map((e) => (e as num).toDouble()).toList() ?? [];
+    bool notReading = result['not_reading'] ?? true;
+    bool newStart = result['new_start'] ?? false;
+
+    // **Decide whether to use Audio or Video based on flag**
+    if (widget.useAudioService) {
+      _audioService.processData(notReading, averageGap, intervals, newStart);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoService(
+            notReading: notReading,
+            averageGap: averageGap,
+            intervals: intervals,
+            newStart: newStart,
+          ),
+        ),
+      );
     }
-  }
 
-  /// **Process Recorded Videos (Send to Backend)**
-  Future<void> _processingLoop() async {
-    while (_isRecording) {
-      String? videoPath;
-
-      _safeQueueUpdate(() {
-        if (_videoQueue.isNotEmpty) {
-          videoPath = _videoQueue.removeAt(0);
-        }
-      });
-
-      if (videoPath != null) {
-        print("File size: ${File(videoPath as String).lengthSync()} bytes");
-        var result = await _backendService.sendVideoToBackend(File(videoPath as String));
-        if (result != null) {
-          _audioService.processData(result['not_reading'], result['ave_gap'], result['intervals_list'], result['new_start']);
-
-          setState(() {
-            if (result['not_reading']) {
-              _statusMessage = "Unstable reading, place finger on camera";
-            } else if (!_audioService.isPlaying) {
-              _statusMessage = "Loading...";
-            } else {
-              if (result['bpm'] != -1) {
-                _displayedHeartRate = result['bpm'];
-              }
-              _statusMessage = "BPM: ${_displayedHeartRate.toStringAsFixed(2)}";
-            }
-          });
-        }
-      } else {
-        await Future.delayed(Duration(milliseconds: 500)); // Avoid unnecessary looping
-      }
+    if (heartRate != -1) {
+      bpm = heartRate.toInt();
     }
-  }
 
-  /// **Thread-Safe Video Queue Update**
-  void _safeQueueUpdate(void Function() action) {
-    synchronized(_queueLock, action);
+    setState(() {
+      _statusMessage = notReading ? "Unstable reading, place finger on camera"
+                  : bpm == 0 ? "Loading..."
+                  : "BPM: ${bpm.toString()}";
+    });
+
+    if (_videoQueue.isNotEmpty) {
+      _processNextVideo();
+    }
   }
 
   @override
   void dispose() {
-    _cameraController?.dispose();
+    if (widget.useAudioService) {
+      _audioService.dispose();
+    }
     super.dispose();
   }
 
@@ -139,25 +126,12 @@ class _HeartRateMonitorState extends State<HeartRateMonitor> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (_cameraController != null && _cameraController!.value.isInitialized)
-              ClipOval(child: CameraPreview(_cameraController!)),
             Text(_statusMessage, style: TextStyle(fontSize: 18)),
-            ElevatedButton(
-              onPressed: _isRecording ? null : _startMonitoring,
-              child: Text('Start'),
-            ),
-            ElevatedButton(
-              onPressed: _isRecording ? _stopMonitoring : null,
-              child: Text('Stop'),
-            ),
+            ElevatedButton(onPressed: _isRecording ? null : _startMonitoring, child: Text('Start')),
+            ElevatedButton(onPressed: _isRecording ? _stopMonitoring : null, child: Text('Stop')),
           ],
         ),
       ),
     );
   }
-}
-
-// **Helper function for synchronizing queue updates**
-void synchronized(Object lock, void Function() action) {
-  return action();
 }
