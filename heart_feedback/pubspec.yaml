@@ -41,6 +41,9 @@ dependencies:
   path_provider: ^2.1.4
   flutter_soloud: ^2.1.7
   video_player: ^2.9.2
+  camerawesome: ^2.1.0
+  better_open_file: ^3.6.5
+  torch_light: ^1.1.0
 
 dev_dependencies:
   flutter_test:

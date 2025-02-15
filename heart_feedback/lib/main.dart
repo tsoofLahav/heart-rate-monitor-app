@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'selection_screen.dart'; // Import SelectionScreen
+import 'parallel_Video.dart'; // Import CameraPage
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
 }
 
@@ -11,7 +10,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SelectionScreen(), // Redirect to selection screen first
+      home: ParallelVideoPage(), // Redirect directly to CameraPage
     );
   }
 }

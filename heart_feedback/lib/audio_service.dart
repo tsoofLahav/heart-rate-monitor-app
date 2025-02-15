@@ -38,7 +38,7 @@ class AudioService {
       _soundFilePath = await _copyAssetToAppDocs('assets/boom.wav');
 
       // Load sound from file instead of asset
-      _source = await _soloud.loadFile(_soundFilePath);
+      _source = await _soloud.loadFile('assets/boom.wav');
       if (_source == null) {
         print("[AudioService] ERROR: Failed to load sound file.");
       } else {

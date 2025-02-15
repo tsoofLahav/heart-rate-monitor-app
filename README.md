@@ -7,6 +7,10 @@ https://youtube.com/shorts/S16RzewYPTk
 This app was created as part of a practicum during my Computer Science and Cognition degree. It is still under modification.
 The purpose of the app is to serve as a tool in experiments conducted at Amir Amedi's Brain Lab at Reichman University.
 ## Technologies and Tools
+
+
+<img src="./image.png" alt="Alt text" width="600">
+
 ### Backend:
 Written in Python, using Flask as the framework.
 Using Render for cloud hosting.

@@ -1,137 +1,166 @@
+import 'dart:async';
+import 'dart:isolate';
+import 'dart:collection';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'backend_service.dart';
 import 'audio_service.dart';
-import 'video_service.dart'; // Import VideoService
-import 'dart:io';
-import 'package:flutter/services.dart';
+import 'video_service.dart';
 
 class HeartRateMonitor extends StatefulWidget {
   final bool useAudioService;
-
-  HeartRateMonitor({required this.useAudioService}); // Accept flag
-
+  HeartRateMonitor({required this.useAudioService});
   @override
   _HeartRateMonitorState createState() => _HeartRateMonitorState();
 }
 
 class _HeartRateMonitorState extends State<HeartRateMonitor> {
-  final BackendService _backendService = BackendService();
-  final AudioService _audioService = AudioService();
   static const MethodChannel _channel = MethodChannel('video_recorder');
-
-  String _statusMessage = "";
   bool _isRecording = false;
-  int bpm = 0;
-  final List<String> _videoQueue = [];
+  String bpmMessage = "loading";
+  late ReceivePort _receivePort;
+  Isolate? _processingIsolate;
+  SendPort? _sendPort;
 
   @override
   void initState() {
     super.initState();
     if (widget.useAudioService) {
-      _initializeAudio();
+      AudioService().init();
     }
-    _listenForVideoFiles();
+    _startProcessingIsolate();
+    _startBackgroundRecording();
   }
 
-  Future<void> _initializeAudio() async {
-    await _audioService.init();
-  }
+  /// **Starts the processing isolate for handling data**
+  void _startProcessingIsolate() async {
+    _receivePort = ReceivePort();
+    _processingIsolate = await Isolate.spawn(_processingLoop, _receivePort.sendPort);
 
-  /// **Listen for file paths from iOS**
-  void _listenForVideoFiles() {
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == "videoSaved") {
-        _videoQueue.add(call.arguments as String);
-        _processNextVideo();
+    _receivePort.listen((message) {
+      if (message is SendPort) {
+        _sendPort = message;
+      } else if (message is String) {
+        setState(() {
+          bpmMessage = message;
+        });
+      } else if (message is double) {
+        VideoService().updatePlaybackSpeed(message);
       }
     });
   }
 
-  /// **Start Recording**
-  void _startMonitoring() async {
-    if (_isRecording) return;
-    _isRecording = true;
-    await _channel.invokeMethod("startRecording");
+  /// **Starts video recording on iOS background**
+  void _startBackgroundRecording() async {
+    if (!_isRecording) {
+      _isRecording = true;
+      await _channel.invokeMethod("startRecording");
+      print("[HeartRateMonitor] Started background recording.");
+    }
   }
 
-  /// **Stop Recording**
+  /// **Stops video recording**
   void _stopMonitoring() async {
-    if (!_isRecording) return;
-    _isRecording = false;
-    await _channel.invokeMethod("stopRecording");
-  }
-
-  /// **Process Video Queue (Send to Backend)**
-  Future<void> _processNextVideo() async {
-    if (_videoQueue.isEmpty || !_isRecording) return;
-
-    String videoPath = _videoQueue.removeAt(0);
-    String correctedPath = Uri.parse(videoPath).toFilePath();
-
-    var result = await _backendService.sendVideoToBackend(File(correctedPath));
-
-    if (result == null) return;
-
-    double averageGap = (result['ave_gap'] as num?)?.toDouble() ?? 1.0;
-    double heartRate = (result['heart_rate'] as num?)?.toDouble() ?? -1.0;
-    List<double> intervals = (result['intervals_list'] as List?)?.map((e) => (e as num).toDouble()).toList() ?? [];
-    bool notReading = result['not_reading'] ?? true;
-    bool newStart = result['new_start'] ?? false;
-
-    // **Decide whether to use Audio or Video based on flag**
-    if (widget.useAudioService) {
-      _audioService.processData(notReading, averageGap, intervals, newStart);
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VideoService(
-            notReading: notReading,
-            averageGap: averageGap,
-            intervals: intervals,
-            newStart: newStart,
-          ),
-        ),
-      );
-    }
-
-    if (heartRate != -1) {
-      bpm = heartRate.toInt();
-    }
-
-    setState(() {
-      _statusMessage = notReading ? "Unstable reading, place finger on camera"
-                  : bpm == 0 ? "Loading..."
-                  : "BPM: ${bpm.toString()}";
-    });
-
-    if (_videoQueue.isNotEmpty) {
-      _processNextVideo();
+    if (_isRecording) {
+      _isRecording = false;
+      await _channel.invokeMethod("stopRecording");
+      print("[HeartRateMonitor] Stopped background recording.");
     }
   }
 
   @override
   void dispose() {
-    if (widget.useAudioService) {
-      _audioService.dispose();
-    }
+    _processingIsolate?.kill(priority: Isolate.immediate);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Heart Rate Monitor')),
+      backgroundColor: Colors.black,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(_statusMessage, style: TextStyle(fontSize: 18)),
-            ElevatedButton(onPressed: _isRecording ? null : _startMonitoring, child: Text('Start')),
-            ElevatedButton(onPressed: _isRecording ? _stopMonitoring : null, child: Text('Stop')),
+            Text("BPM: $bpmMessage", style: TextStyle(fontSize: 18, color: Colors.white)),
+            SizedBox(height: 20),
+            widget.useAudioService ? Container() : VideoService().getVideoWidget(),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isRecording ? null : _startBackgroundRecording,
+              child: Text('Start'),
+            ),
+            ElevatedButton(
+              onPressed: _isRecording ? _stopMonitoring : null,
+              child: Text('Stop'),
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+/// **Processing Isolate: Handles Video Processing and Backend Communication**
+void _processingLoop(SendPort mainSendPort) {
+  final ReceivePort isolateReceivePort = ReceivePort();
+  mainSendPort.send(isolateReceivePort.sendPort);
+  final BackendService backendService = BackendService();
+  final Queue<double> timeQueue = Queue<double>();
+  double aveGap = 1.0;
+  double diff = 0.0;
+
+  isolateReceivePort.listen((message) async {
+    if (message is String) {
+      await _processVideo(File(message), backendService, mainSendPort, timeQueue, aveGap, diff);
+    }
+  });
+
+  /// **Loop to send queue data at correct intervals**
+  Future.delayed(Duration(seconds: 5), () async {
+    while (true) {
+      if (timeQueue.isEmpty) {
+        await Future.delayed(Duration(milliseconds: 100));
+        continue;
+      }
+      
+      double playTime = timeQueue.removeFirst();
+      mainSendPort.send(playTime);
+      await Future.delayed(Duration(milliseconds: (playTime * 1000).toInt()));
+    }
+  });
+}
+
+/// **Processes video and updates the queue for playback**
+Future<void> _processVideo(File videoFile, BackendService backendService, SendPort mainSendPort, Queue<double> timeQueue, double aveGap, double diff) async {
+  var result = await backendService.sendVideoToBackend(videoFile);
+  if (result == null) return;
+
+  double newAveGap = (result['ave_gap'] as num?)?.toDouble() ?? 1.0;
+  double heartRate = (result['heart_rate'] as num?)?.toDouble() ?? -1.0;
+  List<double> intervals = (result['intervals_list'] as List?)?.map((e) => (e as num).toDouble()).toList() ?? [];
+  bool notReading = result['not_reading'] ?? true;
+  bool newStart = result['new_start'] ?? false;
+
+  if (!notReading) {
+    if (newAveGap != 1.0) {
+      diff = newAveGap - aveGap;
+      aveGap = newAveGap;
+    }
+    intervals = intervals.map((interval) => interval + diff).toList();
+    
+    if (newStart && timeQueue.isNotEmpty) {
+      double lastValue = timeQueue.removeLast();
+      timeQueue.add(lastValue + intervals[0] - diff);
+      timeQueue.addAll(intervals.sublist(1));
+    } else {
+      timeQueue.addAll(intervals);
+    }
+  } else {
+    timeQueue.clear();
+  }
+
+  String bpmMessage = notReading ? "not reading" : heartRate == -1 ? "loading" : heartRate.toInt().toString();
+  mainSendPort.send(bpmMessage);
 }
