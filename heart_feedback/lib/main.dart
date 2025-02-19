@@ -10,7 +10,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ParallelVideoPage(), // Redirect directly to CameraPage
+      home: BiofeedbackScreen(), // Redirect directly to CameraPage
     );
   }
 }

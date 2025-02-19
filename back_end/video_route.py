@@ -3,11 +3,7 @@ import os
 import numpy as np
 import cv2
 import logging
-
-from bpm_and_hrv import BPMAndHRVCalculator
-
-bpm_hrv_calculator = BPMAndHRVCalculator()
-from peak_detection import detect_pulse
+import process_data
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -15,7 +11,6 @@ logging.basicConfig(level=logging.ERROR)
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
-        global ave_gap
         try:
             # Receive video file from request
             file = request.files.get('video')
@@ -51,10 +46,9 @@ def setup_video_route(app):
                 raise Exception("No frames were processed from the video.")
 
             # Perform peak detection
-            not_reading, intervals, new_start, last_intervalt = detect_pulse(intensities, fps, ave_gap)
+            not_reading, intervals, new_start, bpm = process_data.detect_pulse(intensities, fps)
 
             if not not_reading:
-                bpm, hrv= bpm_hrv_calculator.calculate(intervals, new_start, last_intervalt)
                 return jsonify(
                     {'not_reading': not_reading, 'heart_rate': bpm, 'intervals': intervals, 'startNew': new_start})
             else:
