@@ -1,7 +1,8 @@
 import numpy as np
 
-extra_beat = False
-missing_beat = False
+last_interval = -1
+old_ave_gap = 1
+new_ave_gap = 1
 
 
 # Moving average filter
@@ -38,36 +39,44 @@ def convert_peaks_to_timegaps(peaks, fps, total_duration, time):
     return np.array(time_gaps)
 
 
-# Detect duplicate beats
-def detect_duplicate_beats(fps, peaks):
-    global extra_beat
-    if len(peaks) > 0 and peaks[0] < fps / 15 and extra_beat:
-        peaks = peaks[1:]  # Remove the first peak if it is too close to the start and extra_beat is flagged
-
-    if len(peaks) > 0 and (fps - peaks[-1]) < fps / 15:
-        peaks = peaks[:-1]  # Remove the last peak if it is too close to the end
-        extra_beat = True
+def compute_average_gap(time_gaps, last_interval):
+    if last_interval == -1:
+        sum_up = sum(time_gaps[1:-1])
+        average = sum_up / len(time_gaps[1:-1])
     else:
-        extra_beat = False
+        sum_up = sum(time_gaps[:-1]) + last_interval
+        average = sum_up / len(time_gaps[:-1])
+    return average
 
-    return peaks
 
+def creating_new_list(time_gaps, old_ave_gap, new_ave_gap, total_duration):
+    global last_interval
 
-# Detect missing beats
-def detect_missing_beats(time_gaps, ave_gap, new_start):
-    global missing_beat
-    if len(time_gaps) > 0 and time_gaps[0] >= ave_gap and missing_beat:
+    if last_interval == -1:
+        last_interval = time_gaps[-1]
+        old_ave_gap = new_ave_gap
+    new_start = False
+    new_list = []
+    first_interval = (new_ave_gap - last_interval) + (new_ave_gap - old_ave_gap)
+    if first_interval < 0:
+        first_interval = new_ave_gap + first_interval
+        new_list.append(first_interval)
         new_start = True
-
-    if len(time_gaps) > 0 and time_gaps[-1] >= ave_gap:
-        missing_beat = True
+    elif first_interval == 0:
+        new_start = True
     else:
-        missing_beat = False
+        new_list.append(first_interval)
+    total_duration -= first_interval
+    while total_duration >= new_ave_gap:
+        total_duration -= new_ave_gap
+        new_list.append(new_ave_gap)
+    new_list.append(total_duration)
+    last_interval = total_duration
+    return new_list, new_start
 
-    return new_start
+    # Detect unstable readings
 
 
-# Detect unstable readings
 def detect_unstable_reading(filtered_signal, baseline, std_dev, std_threshold=1.5):
     #  If all values are (near) zero, mark as unstable
     if np.all(filtered_signal == 0) or baseline == 0:
@@ -82,12 +91,10 @@ def detect_unstable_reading(filtered_signal, baseline, std_dev, std_threshold=1.
 
 # Detect pulse
 def detect_pulse(intensities, fps, ave_gap):
-    global extra_beat, missing_beat
-
+    global old_ave_gap, new_ave_gap, last_interval
     # Apply moving average filter
     signal = np.array(intensities)
     filtered_signal = moving_average_filter(signal, window_size=3)
-    new_start = extra_beat
 
     #  Compute baseline & std_dev **once**
     baseline = np.mean(filtered_signal)
@@ -97,21 +104,21 @@ def detect_pulse(intensities, fps, ave_gap):
     not_reading = detect_unstable_reading(filtered_signal, baseline, std_dev)
 
     if not_reading:
-        return not_reading, [], False
+        return True, [], False
 
     #  Compute dynamic threshold using precomputed baseline & std_dev
     dynamic_threshold = baseline + (0.5 * std_dev)
     peaks = detect_peaks(filtered_signal, dynamic_threshold)
     total_duration = len(signal) / fps
 
-    # Detect duplicate beats
-    peaks = detect_duplicate_beats(fps, peaks)
-
     # Convert peaks to time gaps
     time_gaps = convert_peaks_to_timegaps(peaks, fps, total_duration, len(signal))
 
-    # Detect missing beats
-    new_start = detect_missing_beats(time_gaps, ave_gap, new_start)
+    # defining average gaps
+    old_ave_gap = new_ave_gap
+    new_ave_gap = compute_average_gap(time_gaps, last_interval)
 
-    return not_reading, time_gaps, new_start
+    # defining a beat between the intervals
+    new_list, new_start = creating_new_list(time_gaps, old_ave_gap, new_ave_gap, total_duration)
 
+    return not_reading, new_list, new_start, last_interval

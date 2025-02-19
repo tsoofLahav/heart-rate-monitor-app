@@ -2,13 +2,14 @@ from flask import request, jsonify
 import os
 import numpy as np
 import cv2
+import logging
 
 from bpm_and_hrv import BPMAndHRVCalculator
 
 bpm_hrv_calculator = BPMAndHRVCalculator()
 from peak_detection import detect_pulse
 
-ave_gap = 1
+logging.basicConfig(level=logging.ERROR)
 
 
 def setup_video_route(app):
@@ -50,19 +51,18 @@ def setup_video_route(app):
                 raise Exception("No frames were processed from the video.")
 
             # Perform peak detection
-            not_reading, intervals_list, new_start = detect_pulse(intensities, fps, ave_gap)
+            not_reading, intervals, new_start, last_intervalt = detect_pulse(intensities, fps, ave_gap)
 
-            bpm, hrv, local_ave_gap = bpm_hrv_calculator.calculate(intervals_list, new_start, not_reading)
+            if not not_reading:
+                bpm, hrv= bpm_hrv_calculator.calculate(intervals, new_start, last_intervalt)
+                return jsonify(
+                    {'not_reading': not_reading, 'heart_rate': bpm, 'intervals': intervals, 'startNew': new_start})
+            else:
+                return jsonify(
+                    {'not_reading': True, 'heart_rate': -1, 'intervals': [], 'startNew': False})
 
-            if local_ave_gap is not -1:
-                ave_gap = local_ave_gap
-
-            intervals = intervals_list.tolist()
-
-            return jsonify(
-                {'not_reading': not_reading, 'heart_rate': bpm, 'average_gap': ave_gap, 'intervals': intervals,
-                 'startNew': new_start})
 
         except Exception as e:
-            return jsonify(
-                {'error': f'Error processing signal: {str(e)}', 'heart_rate': 0.0, 'peaks': [], 'startNew': False}), 500
+
+            logging.error(f"Error processing video: {str(e)}")  # Logs the error to the backend logs
+            return jsonify({'server_error': True}), 500  # Sends only a boolean flag to the frontend
