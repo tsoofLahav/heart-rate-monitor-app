@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import butter, sosfiltfilt, find_peaks
+from scipy.signal import butter, sosfilt, find_peaks
 
 
 # Moving average filter
@@ -12,13 +12,13 @@ def normalize_signal(signal):
     return (signal - np.mean(signal)) / np.std(signal)
 
 
-def bandpass_filter(signal, fps, lowcut=0.7, highcut=4.0, order=3):
+def bandpass_filter(signal, fps, lowcut=0.7, highcut=4.0, order=2):
     """Apply a Butterworth band-pass filter to isolate heart rate frequency range."""
     nyquist = 0.5 * fps
     low = lowcut / nyquist
     high = highcut / nyquist
     sos = butter(order, [low, high], btype="band", output="sos")
-    return sosfiltfilt(sos, signal)
+    return sosfilt(sos, signal)
 
 
 # Peak detection function
@@ -50,13 +50,15 @@ def detect_peaks(signal, fps, min_bpm=40, max_bpm=200, prominence=0.3):
     return peaks
 
 
-def detect_unstable_reading(filtered_signal, baseline, std_dev, std_threshold=1.5):
-    #  If all values are (near) zero, mark as unstable
-    if np.all(filtered_signal == 0) or baseline == 0:
+def detect_unstable_reading(filtered_signal, baseline, std_dev, std_threshold=3.0):
+    # If all values are nearly zero, mark as unstable
+    if np.all(np.abs(filtered_signal) < 1e-6) or baseline < 1e-6:
         return True
 
-    #  If standard deviation is too high, mark as unstable
+    # If standard deviation is too high compared to the baseline, mark as unstable
     if std_dev > std_threshold * baseline:
         return True
 
     return False  # Otherwise, signal is stable
+
+
