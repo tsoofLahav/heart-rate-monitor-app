@@ -14,7 +14,7 @@ def detect_pulse(intensities, fps):
     filtered_signal = peak_detection.normalize_signal(filtered_signal)
 
     # Apply band-pass filter
-    filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
+    # filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
 
     # Compute baseline and std deviation
     baseline = np.mean(filtered_signal)
