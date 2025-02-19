@@ -1,7 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
-
+# GitHub Actions workflow to deploy a Flask app inside the 'back_end' directory to Azure Web App
 name: Build and deploy Python app to Azure Web App - monitorFlaskBackend
 
 on:
@@ -14,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read # This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
@@ -26,16 +23,16 @@ jobs:
 
       - name: Create and start virtual environment
         run: |
-          python -m venv venv
-          source venv/bin/activate
-      
+          python -m venv back_end/venv
+          source back_end/venv/bin/activate
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
-        
+        run: pip install -r back_end/requirements.txt
+
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: zip -r release.zip back_end/*
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
@@ -43,7 +40,7 @@ jobs:
           name: python-app
           path: |
             release.zip
-            !venv/
+            !back_end/venv/
 
   deploy:
     runs-on: ubuntu-latest
@@ -59,9 +56,8 @@ jobs:
           name: python-app
 
       - name: Unzip artifact for deployment
-        run: unzip release.zip
+        run: unzip release.zip -d back_end
 
-      
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
@@ -69,3 +65,4 @@ jobs:
           app-name: 'monitorFlaskBackend'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E27DE13F0C704840B540F1440F14627A }}
+          package: back_end  # ✅ Ensure only the back_end directory is deployed
