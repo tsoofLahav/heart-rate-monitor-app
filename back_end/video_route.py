@@ -45,11 +45,14 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
+            import traceback
+
             try:
                 not_reading, intervals, new_start, bpm = process_data.detect_pulse(intensities, fps)
             except Exception as e:
-                logging.error(f"detect_pulse() crashed: {e}")
-                return jsonify({'server_error': True, 'error_message': str(e)}), 500
+                error_message = traceback.format_exc()
+                logging.error(f"detect_pulse() crashed: {error_message}")
+                return jsonify({'server_error': True, 'error_message': error_message}), 500
 
             if not not_reading:
                 return jsonify(
