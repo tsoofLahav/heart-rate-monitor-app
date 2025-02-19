@@ -3,7 +3,7 @@ import peak_detection
 import create_data
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def detect_pulse(intensities, fps):
