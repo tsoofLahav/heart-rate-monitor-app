@@ -3,6 +3,8 @@ import numpy as np
 
 # Convert peaks to time gaps, and extreact last interval
 def convert_peaks_to_timegaps(peaks, fps, total_duration, time, last_interval, ave_gap):
+    if not peaks:
+        return np.array([]), 0
     if len(peaks) == 0:
         return np.array([total_duration])
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'camera_service.dart';
+import '../camera_service.dart';
 import 'monitoring_service.dart';
 
 class HeartRateMonitor extends StatefulWidget {
