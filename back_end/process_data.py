@@ -6,7 +6,6 @@ import create_data
 
 last_interval = -1
 ave_gap = 1
-list_for_storage = []
 
 
 def detect_pulse(intensities, fps):
@@ -29,10 +28,7 @@ def detect_pulse(intensities, fps):
     # create new data to send to front end, using the peaks, using create_data file
     # if last_interval != -1:
     #     list_for_storage.append(last_interval)
-    time_gaps, last_interval = create_data.convert_peaks_to_timegaps(peaks, fps, total_duration, len(signal),
-                                                                     last_interval, ave_gap)
-    ave_gap, bpm = create_data.compute_average_gap_and_bpm(time_gaps, last_interval)
-    new_list, new_start = create_data.creating_new_list(total_duration, last_interval, ave_gap)
+    new_start, new_list, bpm = create_data.process_peaks(peaks, fps, total_duration)
     #
     #
     # send to storage and return to front end
