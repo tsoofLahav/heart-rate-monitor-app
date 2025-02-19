@@ -7,15 +7,27 @@ def detect_pulse(intensities, fps):
     #
     #
     # detect peaks and unstable reading using peak_detection file
+    # Process signal before peak detection
     filtered_signal = np.array(intensities)
-    #filtered_signal = peak_detection.moving_average_filter(signal, window_size=2)
+
+    # Normalize
+    filtered_signal = peak_detection.normalize_signal(filtered_signal)
+
+    # Apply band-pass filter
+    filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
+
+    # Compute baseline and std deviation
     baseline = np.mean(filtered_signal)
     std_dev = np.std(filtered_signal)
+
+    # Detect unstable reading
     not_reading = peak_detection.detect_unstable_reading(filtered_signal, baseline, std_dev)
     if not_reading:
         return True, [], False, 0.0
-    dynamic_threshold = baseline + (0.2 * std_dev)
-    peaks = peak_detection.detect_peaks(filtered_signal, dynamic_threshold)
+
+    # Dynamic threshold and peak detection
+    # dynamic_threshold = baseline + (0.2 * std_dev)
+    peaks = peak_detection.detect_peaks(filtered_signal, fps)
     total_duration = len(filtered_signal) / fps
     #
     #

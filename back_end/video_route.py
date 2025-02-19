@@ -32,14 +32,14 @@ def setup_video_route(app):
             if not cap.isOpened():
                 raise Exception("Failed to open video file with OpenCV.")
 
-            # Process video frames
+            # Process video frames (Extract green channel intensity)
             intensities = []
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                intensities.append(np.mean(gray))
+                green_channel = frame[:, :, 1]  # Extract green channel (index 1 in BGR)
+                intensities.append(np.mean(green_channel))  # Compute average intensity of green pixels
             cap.release()
 
             # Check if intensities were successfully captured
