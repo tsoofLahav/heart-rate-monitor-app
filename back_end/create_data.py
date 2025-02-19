@@ -26,7 +26,7 @@ def process_peaks(peaks, fps, total_duration):
     if last_interval != -1:
         if last_interval + time_gaps[0] > 1.5 * ave_gap:
             print("Detected possible missing beat at boundary!")
-            time_gaps = np.insert(time_gaps, 0, 0)  # Assume a missed beat
+            time_gaps = np.insert(time_gaps, 0, last_interval)  # Assume a missed beat
         else:
             time_gaps[0] += last_interval  # Merge previous interval
 

@@ -1,15 +1,9 @@
 import numpy as np
-from flask import jsonify
-
 import peak_detection
 import create_data
 
-last_interval = -1
-ave_gap = 1
-
 
 def detect_pulse(intensities, fps):
-    global ave_gap, last_interval
     #
     #
     # detect peaks and unstable reading using peak_detection file
