@@ -32,15 +32,13 @@ jobs:
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
-        run: zip -r release.zip back_end/*
+        run: zip -r release.zip back_end/* -x "back_end/venv/*"
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            release.zip
-            !back_end/venv/
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -56,7 +54,7 @@ jobs:
           name: python-app
 
       - name: Unzip artifact for deployment
-        run: unzip release.zip -d back_end
+        run: unzip release.zip
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -66,3 +64,4 @@ jobs:
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: back_end  # ✅ Ensures only the back_end directory is deployed
+
