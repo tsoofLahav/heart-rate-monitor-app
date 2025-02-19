@@ -64,5 +64,5 @@ jobs:
         with:
           app-name: 'monitorFlaskBackend'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E27DE13F0C704840B540F1440F14627A }}
-          package: back_end  # ✅ Ensure only the back_end directory is deployed
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+          package: back_end  # ✅ Ensures only the back_end directory is deployed
