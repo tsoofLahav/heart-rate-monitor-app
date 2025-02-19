@@ -45,8 +45,11 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
-            # Perform peak detection
-            not_reading, intervals, new_start, bpm = process_data.detect_pulse(intensities, fps)
+            try:
+                not_reading, intervals, new_start, bpm = process_data.detect_pulse(intensities, fps)
+            except Exception as e:
+                logging.error(f"detect_pulse() crashed: {e}")
+                return jsonify({'server_error': True, 'error_message': str(e)}), 500
 
             if not not_reading:
                 return jsonify(
