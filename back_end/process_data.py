@@ -18,7 +18,7 @@ def detect_pulse(intensities, fps):
     std_dev = np.std(filtered_signal)
     not_reading = peak_detection.detect_unstable_reading(filtered_signal, baseline, std_dev)
     if not_reading:
-        return True, [], False
+        return True, [], False, 0.0
     dynamic_threshold = baseline + (0.5 * std_dev)
     peaks = peak_detection.detect_peaks(filtered_signal, dynamic_threshold)
     total_duration = len(signal) / fps

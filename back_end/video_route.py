@@ -11,6 +11,7 @@ logging.basicConfig(level=logging.ERROR)
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
+        return jsonify({"message": "Backend is alive!"}), 200
         try:
             # Receive video file from request
             file = request.files.get('video')
