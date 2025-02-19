@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import logging
 import process_data
+import traceback
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -11,7 +12,6 @@ logging.basicConfig(level=logging.ERROR)
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
-        return jsonify({"message": "Backend is alive!"}), 200
         try:
             # Receive video file from request
             file = request.files.get('video')
@@ -46,7 +46,7 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
-            import traceback
+            return jsonify({"fps": fps}), 200
 
             try:
                 not_reading, intervals, new_start, bpm = process_data.detect_pulse(intensities, fps)
