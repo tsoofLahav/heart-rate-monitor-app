@@ -100,16 +100,40 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   Future<void> _sendVideoToBackend(String filePath) async {
-    var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
+    var uri = Uri.parse("https://heart-rate-monitor-app.onrender.com/process_video");
 
     var request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('video', filePath));
 
+    var startTime = DateTime.now(); // Start measuring time
+
     try {
       var response = await request.send();
+      var endTime = DateTime.now(); // End measuring time
+      print("Backend response time: ${endTime.difference(startTime).inMilliseconds} ms");
+
       if (response.statusCode == 200) {
         var jsonResponse = await response.stream.bytesToString();
-        _handleBackendResponse(json.decode(jsonResponse));
+
+        // Ensure response is not empty before parsing
+        if (jsonResponse.isNotEmpty) {
+          var data = json.decode(jsonResponse);
+
+          // ✅ Check for server error first
+          if (data.containsKey('server_error') && data['server_error'] == true) {
+            print("Server error detected. Skipping processing.");
+            return; // Stop execution
+          }
+
+          // ✅ Ensure required values exist before using them
+          if (data.containsKey('heart_rate') && data['heart_rate'] != null) {
+            _handleBackendResponse(data);
+          } else {
+            print("Error: 'heart_rate' is missing or null in response.");
+          }
+        } else {
+          print("Error: Received empty response from backend.");
+        }
       } else {
         print("Failed to send video, status code: ${response.statusCode}");
       }

@@ -3,10 +3,8 @@ import numpy as np
 
 # Convert peaks to time gaps, and extreact last interval
 def convert_peaks_to_timegaps(peaks, fps, total_duration, time, last_interval, ave_gap):
-    if not peaks:
-        return np.array([]), 0
     if len(peaks) == 0:
-        return np.array([total_duration])
+        return np.array([total_duration]), total_duration
 
     time_gaps = [peaks[0] / fps]
 
@@ -31,7 +29,7 @@ def compute_average_gap_and_bpm(time_gaps, last_interval):
         sum_up = sum(time_gaps[:-1]) + last_interval
         if len(time_gaps[:-1]) != 0:
             average = sum_up / len(time_gaps[:-1])
-    bpm = 60 / average
+    bpm = 60 / average if average > 0 else 0
     return average, bpm
 
 
