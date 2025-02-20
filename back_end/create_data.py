@@ -60,9 +60,6 @@ def process_peaks(peaks, fps, total_duration):
         new_list.append(ave_gap)
         total_duration -= ave_gap
 
-    if total_duration > 0:
-        new_list.append(total_duration)
-
     print(f"Generated Beat List: {new_list}, New Start: {new_start}\n")
 
     return new_start, new_list, bpm

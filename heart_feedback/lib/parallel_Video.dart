@@ -175,15 +175,14 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   void _playSoundsWithIntervals() async {
-    if (_timeIntervals.isEmpty || _timeIntervals.length == 1) return;
+    if (_timeIntervals.isEmpty) return;
 
     if (_newStart) {
       await _playSound();
-      await Future.delayed(Duration(seconds: _timeIntervals[0].toInt()));
     }
 
-    for (int i = _newStart ? 1 : 0; i < _timeIntervals.length - 1; i++) {
-      await Future.delayed(Duration(seconds: _timeIntervals[i].toInt()));
+    for (double interval in _timeIntervals) {
+      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
       await _playSound();
     }
   }
@@ -196,11 +195,16 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   // HAPTIC FEEDBACK
   //////////////////////////////////////////////////////////////////////////////
 
-  void _triggerHapticFeedback() {
+  void _triggerHapticFeedback() async {
+    if (_timeIntervals.isEmpty) return;
+
+    if (_newStart) {
+      Vibration.vibrate(duration: 50);
+    }
+
     for (double interval in _timeIntervals) {
-      Future.delayed(Duration(milliseconds: (interval * 1000).toInt()), () {
-        Vibration.vibrate(duration: 100);
-      });
+      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
+      Vibration.vibrate(duration: 50);
     }
   }
 
