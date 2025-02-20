@@ -15,8 +15,8 @@ def detect_pulse(intensities, fps):
     logger.info(f"Raw Intensities: {filtered_signal}")
 
     # Apply band-pass filter
-    filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
-    logger.info(f"After Band-Pass Filter: {filtered_signal}")
+    # filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
+    # logger.info(f"After Band-Pass Filter: {filtered_signal}")
 
     # Normalize
     filtered_signal = peak_detection.normalize_signal(filtered_signal)

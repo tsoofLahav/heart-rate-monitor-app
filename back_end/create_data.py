@@ -17,8 +17,9 @@ def process_peaks(peaks, fps, total_duration):
     if len(peaks) == 0:
         time_gaps = np.array([total_duration])
     else:
-        time_gaps = np.diff(np.insert(peaks, 0, 0)) / fps  # Gaps between peaks
-        time_gaps = np.append(time_gaps, (total_duration - peaks[-1]) / fps)  # Last gap
+        peak_times = peaks / fps  # Convert frame indices to seconds
+        time_gaps = np.diff(np.insert(peak_times, 0, 0))  # Gaps between peaks
+        time_gaps = np.append(time_gaps, total_duration - peak_times[-1])  # Last gap
 
     print(f"Initial Time Gaps: {time_gaps}")
 
