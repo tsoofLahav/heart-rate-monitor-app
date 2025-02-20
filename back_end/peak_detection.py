@@ -12,52 +12,27 @@ def normalize_signal(signal):
     return (signal - np.mean(signal)) / np.std(signal)
 
 
-def bandpass_filter(signal, fps, lowcut=0.7, highcut=4.0, order=2):
-    """Apply a Butterworth band-pass filter to isolate heart rate frequency range."""
+def bandpass_filter(signal, fps, lowcut=1.0, highcut=4.0, order=1):
+    """Apply a Butterworth band-pass filter with less aggressive filtering."""
     nyquist = 0.5 * fps
     low = lowcut / nyquist
     high = highcut / nyquist
     sos = butter(order, [low, high], btype="band", output="sos")
-
-    filtered_signal = sosfilt(sos, signal)
-
-    # Normalize to maintain peak amplitudes relative to original signal
-    filtered_signal = (filtered_signal - np.mean(filtered_signal)) / np.std(filtered_signal)
-
-    return filtered_signal
+    return sosfilt(sos, signal)
 
 
-def detect_peaks(signal, fps, min_bpm=40, max_bpm=200):
+def detect_peaks(signal, fps, min_bpm=40, max_bpm=200, prominence=0.15):
     """
     Detect peaks in a PPG signal using adaptive thresholding.
-
-    Parameters:
-        signal (array-like): Processed PPG signal.
-        fps (float): Frames per second of the video.
-        min_bpm (int): Minimum expected heart rate.
-        max_bpm (int): Maximum expected heart rate.
-
-    Returns:
-        peaks (array): Indices of detected peaks.
+    Lower prominence to allow more peaks.
     """
-    # Convert BPM range to sample distance
-    min_gap = 60 / max_bpm  # Smallest expected time between beats (sec)
-    max_gap = 60 / min_bpm  # Largest expected time between beats (sec)
+    min_gap = 60 / max_bpm
+    max_gap = 60 / min_bpm
+    min_distance = int(min_gap * fps)
 
-    min_distance = int((60 / 180) * fps)  # Allow detection up to 180 BPM  # Convert to frames
-    max_distance = int(max_gap * fps)
-
-    # Adaptive Prominence Based on Filtered Signal Amplitude
-    signal_std = np.std(signal)
-    signal_mean = np.mean(signal)
-
-    prominence = 0.8 * signal_std  # Dynamically adapt prominence
-    height = signal_mean + 0.6 * signal_std  # Adaptive height threshold
-
-    # Peak detection with adaptive prominence & height
-    peaks, _ = find_peaks(signal, distance=min_distance, prominence=prominence, height=height)
-
+    peaks, _ = find_peaks(signal, distance=min_distance, prominence=prominence)
     return peaks
+
 
 def detect_unstable_reading(raw_signal, fps, min_variation=5, max_variation=250, max_jump=50, freq_range=(0.7, 4.0)):
     """
