@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart'; // Needed for haptic feedback
+import 'package:video_player/video_player.dart';
 
 class BiofeedbackScreen extends StatefulWidget {
   final String mode; // Mode selection flag
@@ -26,6 +27,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   bool _unstableReading = false;
   bool _newStart = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  VideoPlayerController _videoController = VideoPlayerController.asset("assets/video.mp4");
 
   @override
   void initState() {
@@ -165,7 +167,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
       } else if (widget.mode == "haptic") {
         _triggerHapticFeedback();
       } else if (widget.mode == "visual") {
-        _updateVisualFeedback();
+        _playVisualFeedback();
       }
     }
   }
@@ -212,9 +214,28 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   // VISUAL FEEDBACK
   //////////////////////////////////////////////////////////////////////////////
 
-  void _updateVisualFeedback() {
-    print("Visual feedback triggered!");
-    // TODO: Implement visual cue logic here
+  void _playVisualFeedback() async {
+    if (_timeIntervals.isEmpty) return;
+
+    await _videoController.initialize();
+    _videoController.setLooping(false);
+
+    if (_newStart) {
+      _videoController.play();
+    }
+
+    for (double interval in _timeIntervals) {
+      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
+      _videoController.seekTo(Duration.zero);
+      _videoController.play();
+    }
+
+    // Play one more time with the last duration
+    if (_timeIntervals.isNotEmpty) {
+      await Future.delayed(Duration(milliseconds: (_timeIntervals.last * 1000).toInt()));
+      _videoController.seekTo(Duration.zero);
+      _videoController.play();
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
