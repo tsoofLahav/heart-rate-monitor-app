@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'parallel_Video.dart'; // Import CameraPage
+import 'selection_screen.dart'; // Import CameraPage
 
 void main() {
   runApp(MyApp());
@@ -10,7 +10,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: BiofeedbackScreen(), // Redirect directly to CameraPage
+      home: SelectionScreen(), // Redirect directly to CameraPage
     );
   }
 }

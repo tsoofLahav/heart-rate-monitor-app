@@ -6,8 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart'; // Needed for haptic feedback
 
 class BiofeedbackScreen extends StatefulWidget {
+  final String mode; // Mode selection flag
+
+  BiofeedbackScreen({required this.mode});
+
   @override
   _BiofeedbackScreenState createState() => _BiofeedbackScreenState();
 }
@@ -149,13 +154,19 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   void _handleBackendResponse(Map<String, dynamic> data) {
     setState(() {
       _unstableReading = data['not_reading'];
-      _bpm = data['bpm'];
-      _timeIntervals = List<double>.from(data['time_intervals']);
-      _newStart = data['new_start'];
+      _bpm = data['heart_rate'];
+      _timeIntervals = List<double>.from(data['intervals']);
+      _newStart = data['startNew'];
     });
 
     if (_timeIntervals.isNotEmpty) {
-      _playSoundsWithIntervals();
+      if (widget.mode == "audio") {
+        _playSoundsWithIntervals();
+      } else if (widget.mode == "haptic") {
+        _triggerHapticFeedback();
+      } else if (widget.mode == "visual") {
+        _updateVisualFeedback();
+      }
     }
   }
 
@@ -179,6 +190,27 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
 
   Future<void> _playSound() async {
     await _audioPlayer.play(AssetSource('assets/boom.wav'));
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // HAPTIC FEEDBACK
+  //////////////////////////////////////////////////////////////////////////////
+
+  void _triggerHapticFeedback() {
+    for (double interval in _timeIntervals) {
+      Future.delayed(Duration(milliseconds: (interval * 1000).toInt()), () {
+        Vibration.vibrate(duration: 100);
+      });
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // VISUAL FEEDBACK
+  //////////////////////////////////////////////////////////////////////////////
+
+  void _updateVisualFeedback() {
+    print("Visual feedback triggered!");
+    // TODO: Implement visual cue logic here
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -220,6 +252,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // Black background
       appBar: AppBar(title: Text('Biofeedback Screen')),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -236,7 +269,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
             style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: _unstableReading ? Colors.red : Colors.black),
+                color: _unstableReading ? Colors.red : Colors.white),
           ),
           SizedBox(height: 20),
           Row(
