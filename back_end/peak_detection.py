@@ -51,7 +51,7 @@ def detect_peaks(signal, fps, min_bpm=40, max_bpm=200):
     signal_std = np.std(signal)
     signal_mean = np.mean(signal)
 
-    prominence = 0.5 * signal_std  # Dynamically adapt prominence
+    prominence = 0.8 * signal_std  # Dynamically adapt prominence
     height = signal_mean + 0.6 * signal_std  # Adaptive height threshold
 
     # Peak detection with adaptive prominence & height
