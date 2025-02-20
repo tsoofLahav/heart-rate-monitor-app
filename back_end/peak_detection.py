@@ -21,16 +21,51 @@ def bandpass_filter(signal, fps, lowcut=1.0, highcut=4.0, order=1):
     return sosfilt(sos, signal)
 
 
-def detect_peaks(signal, fps, min_bpm=40, max_bpm=200, prominence=0.15):
+def detect_peaks(signal, fps, min_bpm=40, max_bpm=200, window_size=3):
     """
-    Detect peaks in a PPG signal using adaptive thresholding.
-    Lower prominence to allow more peaks.
+    Detect peaks in a PPG signal using adaptive thresholding with noise reduction.
+
+    Enhancements:
+    - Moving average smoothing to reduce noise.
+    - Adaptive prominence based on signal variability.
+    - Filtering out unrealistic BPM intervals.
+
+    Parameters:
+        signal (array-like): Processed PPG signal.
+        fps (float): Frames per second of the video.
+        min_bpm (int): Minimum expected heart rate.
+        max_bpm (int): Maximum expected heart rate.
+        window_size (int): Window size for moving average smoothing.
+
+    Returns:
+        peaks (array): Indices of detected peaks.
     """
-    min_gap = 60 / max_bpm
-    max_gap = 60 / min_bpm
+
+    # 1. Apply moving average smoothing
+    smoothed_signal = np.convolve(signal, np.ones(window_size) / window_size, mode="same")
+
+    # 2. Compute adaptive prominence based on signal variability
+    std_dev = np.std(smoothed_signal)
+    prominence = max(0.1, 0.3 * std_dev)  # Scale prominence dynamically
+
+    # 3. Convert BPM range to sample distance
+    min_gap = 60 / max_bpm  # Seconds per beat at max BPM
+    max_gap = 60 / min_bpm  # Seconds per beat at min BPM
     min_distance = int(min_gap * fps)
 
-    peaks, _ = find_peaks(signal, distance=min_distance, prominence=prominence)
+    # Detect peaks with adaptive prominence
+    peaks, properties = find_peaks(smoothed_signal, distance=min_distance, prominence=prominence)
+
+    # 4. Filter out peaks that result in unrealistic BPM values
+    if len(peaks) > 1:
+        peak_intervals = np.diff(peaks) / fps
+        valid_peaks = [peaks[0]]  # Always keep the first peak
+        for i in range(1, len(peaks)):
+            bpm = 60 / peak_intervals[i - 1]
+            if min_bpm <= bpm <= max_bpm:
+                valid_peaks.append(peaks[i])
+        peaks = np.array(valid_peaks)
+
     return peaks
 
 
