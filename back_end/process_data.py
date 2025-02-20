@@ -6,31 +6,29 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 def detect_pulse(intensities, fps):
     logger.info("\n--- Detecting Pulse ---")
 
     # Process signal before peak detection
     filtered_signal = np.array(intensities)
 
+    # Detect unstable reading
+    not_reading = peak_detection.detect_unstable_reading(filtered_signal, fps)
+    logger.info(f"Unstable Reading Detected: {not_reading}")
+    if not_reading:
+        return True, [], False, 0.0
+
+    # Apply band-pass filter
+    filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
+
     # Normalize
     filtered_signal = peak_detection.normalize_signal(filtered_signal)
     logger.info(f"Normalized Signal: {filtered_signal[:10]}... (showing first 10 values)")
 
-    # Apply band-pass filter
-    # filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
-
     # Compute baseline and std deviation
-    baseline = np.mean(filtered_signal)
-    std_dev = np.std(filtered_signal)
-
-    logger.info(f"Baseline: {baseline}, Std Dev: {std_dev}")
-
-    # Detect unstable reading
-    not_reading = peak_detection.detect_unstable_reading(filtered_signal, baseline, std_dev)
-    logger.info(f"Unstable Reading Detected: {not_reading}")
-
-    if not_reading:
-        return True, [], False, 0.0
+    # baseline = np.mean(filtered_signal)
+    # std_dev = np.std(filtered_signal)
 
     # Dynamic threshold and peak detection
     # dynamic_threshold = baseline + (0.2 * std_dev)
@@ -46,4 +44,3 @@ def detect_pulse(intensities, fps):
     logger.info(f"New Start: {new_start}, Intervals: {new_list}, BPM: {bpm}")
 
     return not_reading, new_list, new_start, bpm
-
