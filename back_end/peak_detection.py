@@ -44,7 +44,7 @@ def detect_peaks(signal, fps, min_bpm=40, max_bpm=200):
     min_gap = 60 / max_bpm  # Smallest expected time between beats (sec)
     max_gap = 60 / min_bpm  # Largest expected time between beats (sec)
 
-    min_distance = int(min_gap * fps)  # Convert to frames
+    min_distance = int((60 / 180) * fps)  # Allow detection up to 180 BPM  # Convert to frames
     max_distance = int(max_gap * fps)
 
     # Adaptive Prominence Based on Filtered Signal Amplitude
