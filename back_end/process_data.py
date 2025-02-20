@@ -14,10 +14,10 @@ def detect_pulse(intensities, fps):
     filtered_signal = np.array(intensities)
 
     # Detect unstable reading
-    not_reading = peak_detection.detect_unstable_reading(filtered_signal, fps)
-    logger.info(f"Unstable Reading Detected: {not_reading}")
-    if not_reading:
-        return True, [], False, 0.0
+    # not_reading = peak_detection.detect_unstable_reading(filtered_signal, fps)
+    # logger.info(f"Unstable Reading Detected: {not_reading}")
+    # if not_reading:
+    #     return True, [], False, 0.0
 
     # Apply band-pass filter
     filtered_signal = peak_detection.bandpass_filter(filtered_signal, fps)
