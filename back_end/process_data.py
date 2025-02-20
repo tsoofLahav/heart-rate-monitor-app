@@ -43,4 +43,4 @@ def detect_pulse(intensities, fps):
 
     logger.info(f"New Start: {new_start}, Intervals: {new_list}, BPM: {bpm}")
 
-    return not_reading, new_list, new_start, bpm
+    return False, new_list, new_start, bpm
