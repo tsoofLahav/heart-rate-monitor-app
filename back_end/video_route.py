@@ -82,6 +82,3 @@ def process_video():
         logging.error(f"Error processing video: {str(e)}")
         return jsonify({'server_error': True}), 500
 
-
-if __name__ == '__main__':
-    app.run(debug=True)
