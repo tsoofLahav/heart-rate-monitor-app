@@ -1,62 +1,85 @@
-from flask import request, jsonify
-import os
+from flask import Flask, request, jsonify
 import numpy as np
 import cv2
+import os
 import logging
-import process_data
-import traceback
+import test_methods  # Ensure this module is available for detect_pulse function
 
+app = Flask(__name__)
 logging.basicConfig(level=logging.ERROR)
 
+@app.route('/process_video', methods=['POST'])
+def process_video():
+    try:
+        # Receive video file from request
+        file = request.files.get('video')
+        if not file:
+            return jsonify({'error': 'No video file received.'}), 400
 
-def setup_video_route(app):
-    @app.route('/process_video', methods=['POST'])
-    def process_video():
-        try:
-            # Receive video file from request
-            file = request.files.get('video')
-            if not file:
-                return jsonify({'error': 'No video file received.'}), 400
+        # Save video file
+        video_path = './temp_video.mp4'
+        file.save(video_path)
 
-            # Save video file
-            video_path = './temp_video.mp4'
-            file.save(video_path)
+        # Check if the file exists and has a valid size
+        if not os.path.exists(video_path) or os.path.getsize(video_path) == 0:
+            raise Exception("Invalid video file.")
 
-            # Check if the file exists and has a valid size
-            if not os.path.exists(video_path) or os.path.getsize(video_path) == 0:
-                raise Exception("Invalid video file.")
+        # Open video with OpenCV
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise Exception("Failed to open video file with OpenCV.")
 
-            # Open video with OpenCV
-            cap = cv2.VideoCapture(video_path)
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            if not cap.isOpened():
-                raise Exception("Failed to open video file with OpenCV.")
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            # Process video frames (Extract green channel intensity)
-            intensities = []
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                green_channel = frame[:, :, 1]  # Extract green channel (index 1 in BGR)
-                intensities.append(np.mean(green_channel))  # Compute average intensity of green pixels
-            cap.release()
+        # Define center and radius of the circular ROI
+        center_x, center_y = frame_width // 2, frame_height // 2
+        radius = min(center_x, center_y) // 2  # Adjust the divisor to change ROI size
 
-            # Check if intensities were successfully captured
-            if not intensities:
-                raise Exception("No frames were processed from the video.")
+        # Create a circular mask
+        Y, X = np.ogrid[:frame_height, :frame_width]
+        dist_from_center = np.sqrt((X - center_x)**2 + (Y - center_y)**2)
+        mask = dist_from_center <= radius
 
-            not_reading, intervals, new_start, bpm = process_data.detect_pulse(intensities, fps)
+        # Process video frames (Extract green channel intensity within ROI)
+        intensities = []
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-            if not not_reading:
-                return jsonify(
-                    {'not_reading': not_reading, 'heart_rate': bpm, 'intervals': intervals, 'startNew': new_start})
-            else:
-                return jsonify(
-                    {'not_reading': True, 'heart_rate': -1, 'intervals': [], 'startNew': False})
+            # Extract green channel
+            green_channel = frame[:, :, 1]
 
+            # Apply mask to isolate circular ROI
+            roi_values = green_channel[mask]
 
-        except Exception as e:
+            # Compute average intensity within the ROI
+            mean_intensity = np.mean(roi_values)
+            intensities.append(mean_intensity)
 
-            logging.error(f"Error processing video: {str(e)}")  # Logs the error to the backend logs
-            return jsonify({'server_error': True}), 500  # Sends only a boolean flag to the frontend
+        cap.release()
+
+        # Check if intensities were successfully captured
+        if not intensities:
+            raise Exception("No frames were processed from the video.")
+
+        # Detect pulse using the extracted intensities
+        peaks, bpm, not_reading, intensities, time_stamps = test_methods.detect_pulse(intensities, fps)
+
+        # Return the ppg_data as a JSON response
+        return jsonify({
+            'not_reading': not_reading,
+            'heart_rate': bpm,
+            'peaks': peaks,
+            'intensities': intensities,
+            'time_stamps': time_stamps
+        })
+
+    except Exception as e:
+        logging.error(f"Error processing video: {str(e)}")
+        return jsonify({'server_error': True}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)

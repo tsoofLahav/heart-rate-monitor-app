@@ -33,6 +33,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   void initState() {
     super.initState();
     _initCamera();
+    _videoController = VideoPlayerController.asset("assets/video.mp4")..initialize();
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -107,7 +108,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   Future<void> _sendVideoToBackend(String filePath) async {
-    var uri = Uri.parse("https://heart-rate-monitor-app.onrender.com/process_video");
+    var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
 
     var request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('video', filePath));
@@ -190,7 +191,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   }
 
   Future<void> _playSound() async {
-    await _audioPlayer.play(AssetSource('assets/boom.wav'));
+    await _audioPlayer.play(AssetSource('boom.wav'));
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -220,21 +221,32 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     await _videoController.initialize();
     _videoController.setLooping(false);
 
+    double originalDuration = _videoController.value.duration.inMilliseconds / 1000.0;
+
     if (_newStart) {
+      double speed = originalDuration / _timeIntervals[0];
+      _videoController.setPlaybackSpeed(speed);
       _videoController.play();
     }
 
     for (double interval in _timeIntervals) {
-      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
+      double speed = originalDuration / interval;
+      _videoController.setPlaybackSpeed(speed);
       _videoController.seekTo(Duration.zero);
-      _videoController.play();
+      setState(() {
+        _videoController.play();
+      });
+      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
     }
 
     // Play one more time with the last duration
-    if (_timeIntervals.isNotEmpty) {
-      await Future.delayed(Duration(milliseconds: (_timeIntervals.last * 1000).toInt()));
+    if (_timeIntervals.isEmpty) {
+      double speed = originalDuration / _timeIntervals.last;
+      _videoController.setPlaybackSpeed(speed);
       _videoController.seekTo(Duration.zero);
-      _videoController.play();
+      setState(() {
+        _videoController.play();
+      });
     }
   }
 
@@ -264,17 +276,6 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   @override
-  void dispose() {
-    _cameraController?.dispose();
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // UI BUILD FUNCTION
-  //////////////////////////////////////////////////////////////////////////////
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black, // Black background
@@ -282,12 +283,27 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _cameraController != null && _cameraController!.value.isInitialized
-              ? AspectRatio(
-                  aspectRatio: _cameraController!.value.aspectRatio,
-                  child: CameraPreview(_cameraController!),
-                )
-              : CircularProgressIndicator(),
+          ClipOval(
+            child: SizedBox(
+              width: 150, // Adjust size for small round preview
+              height: 150,
+              child: _cameraController != null && _cameraController!.value.isInitialized
+                  ? CameraPreview(_cameraController!)
+                  : CircularProgressIndicator(),
+            ),
+          ),
+          SizedBox(height: 20),
+          if (widget.mode == "visual")
+            SizedBox(
+              width: 300,
+              height: 200,
+              child: _videoController.value.isInitialized
+                  ? AspectRatio(
+                      aspectRatio: _videoController.value.aspectRatio,
+                      child: VideoPlayer(_videoController),
+                    )
+                  : Container(),
+            ),
           SizedBox(height: 20),
           Text(
             _unstableReading ? "Unstable reading, place your finger" : "BPM: $_bpm",
@@ -315,4 +331,6 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
       ),
     );
   }
+
+
 }
