@@ -50,10 +50,10 @@ def setup_video_route(app):
                     break
 
                 # Extract green channel
-                green_channel = frame[:, :, 1]
+                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
                 # Apply mask to isolate circular ROI
-                roi_values = green_channel[mask]
+                roi_values = gray_frame[mask]
 
                 # Compute average intensity within the ROI
                 mean_intensity = np.mean(roi_values)
