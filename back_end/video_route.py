@@ -1,15 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Blueprint, request, jsonify
 import numpy as np
 import cv2
 import os
 import logging
 import test_methods  # Ensure this module is available for detect_pulse function
 
-app = Flask(__name__)
+video_bp = Blueprint('video', __name__)
 logging.basicConfig(level=logging.ERROR)
 
 
-@app.route('/process_video', methods=['POST'])
+@video_bp.route('/process_video', methods=['POST'])
 def process_video():
     try:
         # Receive video file from request
@@ -81,4 +81,3 @@ def process_video():
     except Exception as e:
         logging.error(f"Error processing video: {str(e)}")
         return jsonify({'server_error': True}), 500
-
