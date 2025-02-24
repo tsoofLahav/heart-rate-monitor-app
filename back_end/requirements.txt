@@ -5,4 +5,4 @@ gunicorn==22.0.0
 scipy~=1.13.1
 plotext~=5.3.2
 heartpy~=1.2.7
-opencv-python~=4.9.0.80
+opencv-python-headless==4.8.1.78
