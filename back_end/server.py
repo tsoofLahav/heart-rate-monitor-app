@@ -1,12 +1,12 @@
 from flask import Flask, jsonify
-from video_route import video_bp
 import os
+import video_route  # Ensure this module contains the process_video route
 
 app = Flask(__name__)
 
-# Register the Blueprint
-app.register_blueprint(video_bp)
 
+# Import the module to register the route
+# No need to call process_video(app)
 
 # Health check route
 @app.route('/health', methods=['GET'])
