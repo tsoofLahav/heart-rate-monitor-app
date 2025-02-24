@@ -1,10 +1,10 @@
 from flask import Flask, jsonify
-from video_route import setup_video_route
+from video_route import process_video
 import os
 
 app = Flask(__name__)
 
-setup_video_route(app)
+process_video(app)
 
 
 # Health check route

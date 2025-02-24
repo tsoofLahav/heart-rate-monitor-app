@@ -8,6 +8,7 @@ import test_methods  # Ensure this module is available for detect_pulse function
 app = Flask(__name__)
 logging.basicConfig(level=logging.ERROR)
 
+
 @app.route('/process_video', methods=['POST'])
 def process_video():
     try:
@@ -39,7 +40,7 @@ def process_video():
 
         # Create a circular mask
         Y, X = np.ogrid[:frame_height, :frame_width]
-        dist_from_center = np.sqrt((X - center_x)**2 + (Y - center_y)**2)
+        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
         mask = dist_from_center <= radius
 
         # Process video frames (Extract green channel intensity within ROI)
@@ -80,6 +81,7 @@ def process_video():
     except Exception as e:
         logging.error(f"Error processing video: {str(e)}")
         return jsonify({'server_error': True}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
