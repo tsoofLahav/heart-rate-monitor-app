@@ -20,16 +20,16 @@ def rls_filter(intensities, fps, delta=1.0, lambda_=0.99):
 
     # Initialize RLS filter parameters
     n = len(intensities)
-    w = np.zeros(1)  # Filter weight (1D for simplicity)
+    w = np.zeros((1,))  # Ensure w is 1D
     P = np.eye(1) * delta  # Inverse covariance matrix
     filtered_signal = np.zeros(n)
 
     for i in range(n):
-        x = np.array([intensities[i]])  # Current sample as input vector
-        K = P @ x / (lambda_ + x.T @ P @ x)  # Gain
-        e = intensities[i] - w.T @ x  # Error signal
-        w = w + K * e  # Update weight
+        x = np.array([intensities[i]]).reshape(1, 1)  # Ensure x is a column vector
+        K = (P @ x) / (lambda_ + x.T @ P @ x)  # Gain
+        e = intensities[i] - (w.T @ x).item()  # Error signal
+        w = w + K.flatten() * e  # Update weight
         P = (P - K @ x.T @ P) / lambda_  # Update covariance
-        filtered_signal[i] = w.T @ x  # Store filtered value
+        filtered_signal[i] = (w.T @ x).item()  # Store filtered value
 
     return filtered_signal.tolist()
