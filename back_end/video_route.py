@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 import os
 import logging
-import test_methods  # Ensure this module is available for detect_pulse function
+import EMD  # Ensure this module is available for detect_pulse function
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -66,13 +66,11 @@ def setup_video_route(app):
                 raise Exception("No frames were processed from the video.")
 
             # Detect pulse using the extracted intensities
-            peaks, bpm, not_reading, intensities, time_stamps = test_methods.detect_pulse(intensities, fps)
+            imfs, time_stamps = EMD.detect_pulse(intensities, fps)
 
             # Return the ppg_data as a JSON response
             return jsonify({
-                'not_reading': not_reading,
-                'heart_rate': bpm,
-                'peaks': peaks,
+                'imfs': imfs,
                 'intensities': intensities,
                 'time_stamps': time_stamps
             })
