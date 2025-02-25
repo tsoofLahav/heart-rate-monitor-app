@@ -1,33 +1,35 @@
 import numpy as np
-from scipy.signal import butter, filtfilt, sosfilt
 import heartpy as hp
 
-
-def bandpass_filter(intensities, fps, lowcut=0.5, highcut=3.0, order=2):
+def rls_filter(intensities, fps, delta=1.0, lambda_=0.99):
     """
-    Apply a bandpass filter to the PPG signal and detect peaks.
+    Apply an RLS (Recursive Least Squares) filter to the PPG signal.
 
     Parameters:
     - intensities: List or array of PPG signal intensities.
     - fps: Frames per second of the video (sampling frequency).
-    - lowcut: Lower cutoff frequency (default 0.5 Hz for heart rate).
-    - highcut: Upper cutoff frequency (default 3.0 Hz).
-    - order: Order of the filter (default 2).
+    - delta: Initial P matrix value (higher values adapt faster, default 1.0).
+    - lambda_: Forgetting factor (close to 1 for slow adaptation, default 0.99).
 
     Returns:
     - filtered_signal: The filtered PPG signal.
-    - peaks: Indices of detected peaks.
     """
-    # Convert to numpy array
+
+    # Convert intensities to numpy array
     intensities = np.array(intensities)
 
-    # Design Butterworth bandpass filter using second-order sections (sos)
-    nyquist = 0.5 * fps
-    low = lowcut / nyquist
-    high = highcut / nyquist
-    sos = butter(order, [low, high], btype='band', output='sos')
+    # Initialize RLS filter parameters
+    n = len(intensities)
+    w = np.zeros(1)  # Filter weight (1D for simplicity)
+    P = np.eye(1) * delta  # Inverse covariance matrix
+    filtered_signal = np.zeros(n)
 
-    # Apply filter using sosfiltfilt (zero-phase filtering)
-    filtered_signal = sosfilt(sos, intensities)
+    for i in range(n):
+        x = np.array([intensities[i]])  # Current sample as input vector
+        K = P @ x / (lambda_ + x.T @ P @ x)  # Gain
+        e = intensities[i] - w.T @ x  # Error signal
+        w = w + K * e  # Update weight
+        P = (P - K @ x.T @ P) / lambda_  # Update covariance
+        filtered_signal[i] = w.T @ x  # Store filtered value
 
     return filtered_signal.tolist()
