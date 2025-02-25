@@ -1,7 +1,9 @@
 import numpy as np
 from AdvEMDpy.AdvEMDpy import EMD
+import logging
 
-
+logging.basicConfig(level=logging.DEBUG)  # Set logging level
+logger = logging.getLogger(__name__)
 def detect_pulse(intensities, fps):
     """
     Decompose the PPG signal into Intrinsic Mode Functions (IMFs) using EMD.
@@ -24,7 +26,7 @@ def detect_pulse(intensities, fps):
     # Initialize EMD with time and signal data
     emd = EMD(time=time_stamps, time_series=intensities)
 
-    # Perform EMD decomposition with default spline fitting
-    imfs, _, _, _, _, _ = emd.empirical_mode_decomposition(knots=None, knot_time=None)
+    result = emd.empirical_mode_decomposition(knots=None, knot_time=None)
+    logger.debug(f"EMD result length: {len(result)} | Values: {result}")
 
-    return imfs.tolist(), time_stamps.tolist()
+    return [], []
