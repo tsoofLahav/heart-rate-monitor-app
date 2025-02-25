@@ -66,7 +66,7 @@ def setup_video_route(app):
                 raise Exception("No frames were processed from the video.")
 
             # Detect pulse using the extracted intensities
-            filtered = filter.bandpass_filter(intensities, fps)
+            filtered = filter.rls_filter(intensities, fps)
 
             time_stamps = np.arange(len(intensities)) / fps
 
