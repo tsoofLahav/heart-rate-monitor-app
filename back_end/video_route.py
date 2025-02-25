@@ -74,7 +74,7 @@ def setup_video_route(app):
             return jsonify({
                 'filtered': filtered,
                 'intensities': intensities,
-                'time_stamps': time_stamps
+                'time_stamps': time_stamps.tolist()
             })
 
         except Exception as e:
