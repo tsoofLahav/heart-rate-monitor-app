@@ -66,13 +66,12 @@ def setup_video_route(app):
                 raise Exception("No frames were processed from the video.")
 
             # Detect pulse using the extracted intensities
-            filtered, peaks = filter.bandpass_filter(intensities, fps)
+            filtered = filter.bandpass_filter(intensities, fps)
 
             time_stamps = np.arange(len(intensities)) / fps
 
             # Return the ppg_data as a JSON response
             return jsonify({
-                'peaks': peaks,
                 'filtered': filtered,
                 'intensities': intensities,
                 'time_stamps': time_stamps

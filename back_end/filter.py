@@ -30,8 +30,4 @@ def bandpass_filter(intensities, fps, lowcut=0.5, highcut=3.0, order=2):
     # Apply filter using sosfiltfilt (zero-phase filtering)
     filtered_signal = sosfilt(sos, intensities)
 
-    # Detect peaks using HeartPy
-    wd, m = hp.process(filtered_signal, sample_rate=fps)
-    peaks = np.array(wd['peaklist'])
-
-    return filtered_signal.tolist(), peaks.tolist()
+    return filtered_signal.tolist()
