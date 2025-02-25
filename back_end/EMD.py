@@ -26,7 +26,6 @@ def detect_pulse(intensities, fps):
     # Initialize EMD with time and signal data
     emd = EMD(time=time_stamps, time_series=intensities)
 
-    result = emd.empirical_mode_decomposition(knots=None, knot_time=None)
-    logger.debug(f"EMD result length: {len(result)} | Values: {result}")
+    imfs, _, _, _, _, _, _ = emd.empirical_mode_decomposition(knots=None, knot_time=None)
 
-    return [], []
+    return imfs.tolist(), time_stamps.tolist()
