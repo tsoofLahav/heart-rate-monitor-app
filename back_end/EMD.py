@@ -25,6 +25,6 @@ def detect_pulse(intensities, fps):
     emd = EMD(time=time_stamps, time_series=intensities)
 
     # Perform EMD decomposition with default spline fitting
-    imfs, _, _ = emd.empirical_mode_decomposition(knots=None, knot_time=None)
+    imfs, _, _, _, _, _ = emd.empirical_mode_decomposition(knots=None, knot_time=None)
 
     return imfs.tolist(), time_stamps.tolist()
