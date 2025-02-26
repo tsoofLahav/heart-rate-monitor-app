@@ -1,7 +1,8 @@
 import numpy as np
-import heartpy as hp
+from scipy.signal import find_peaks
 
-def rls_filter(intensities, fps, delta=1.0, lambda_=0.99):
+
+def rls_filter(intensities, fps, delta=10.0, lambda_=0.995):
     """
     Apply an RLS (Recursive Least Squares) filter to the PPG signal and detect peaks.
 
@@ -34,7 +35,6 @@ def rls_filter(intensities, fps, delta=1.0, lambda_=0.99):
         filtered_signal[i] = (w.T @ x).item()  # Store filtered value
 
     # Detect peaks using HeartPy
-    wd, m = hp.process(filtered_signal, sample_rate=fps, reject_segmentwise=True, bpmmin=40, bpmmax=180)
-    peaks = np.array(wd['peaklist'])
+    peaks, _ = find_peaks(filtered_signal, distance=fps * 0.5, prominence=0.1)
 
     return filtered_signal.tolist(), peaks.tolist()
