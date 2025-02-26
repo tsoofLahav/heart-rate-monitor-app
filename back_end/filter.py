@@ -34,7 +34,7 @@ def rls_filter(intensities, fps, delta=1.0, lambda_=0.99):
         filtered_signal[i] = (w.T @ x).item()  # Store filtered value
 
     # Detect peaks using HeartPy
-    wd, m = hp.process(filtered_signal, sample_rate=fps)
+    wd, m = hp.process(filtered_signal, sample_rate=fps, reject_segmentwise=True, bpmmin=40, bpmmax=180)
     peaks = np.array(wd['peaklist'])
 
     return filtered_signal.tolist(), peaks.tolist()
