@@ -57,7 +57,7 @@ def setup_video_route(app):
 
                 # Compute average intensity within the ROI
                 mean_intensity = np.mean(roi_values)
-                intensities.append(mean_intensity)
+                intensities.append(-mean_intensity)  # Invert intensity
 
             cap.release()
 
@@ -65,14 +65,15 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
-            # Detect pulse using the extracted intensities
-            filtered = filter.rls_filter(intensities, fps)
+            # Apply RLS filter and detect peaks
+            filtered, peaks = filter.rls_filter(intensities, fps)
 
             time_stamps = np.arange(len(intensities)) / fps
 
-            # Return the ppg_data as a JSON response
+            # Return processed data as a JSON response
             return jsonify({
                 'filtered': filtered,
+                'peaks': peaks,
                 'intensities': intensities,
                 'time_stamps': time_stamps.tolist()
             })
