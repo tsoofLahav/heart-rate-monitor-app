@@ -140,9 +140,8 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   void _handleBackendResponse(Map<String, dynamic> data) {
     setState(() {
       _unstableReading = data['not_reading'];
-      _bpm = data['heart_rate'];
+      _bpm = data['bpm'];
       _timeIntervals = List<double>.from(data['intervals']);
-      _newStart = data['startNew'];
     });
 
     if (_timeIntervals.isNotEmpty) {
@@ -161,16 +160,17 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   void _playSoundsWithIntervals() async {
-    if (_timeIntervals.isEmpty) return;
+    if (_timeIntervals.length < 2) return; // Need at least 2 intervals
 
-    if (_newStart) {
+    await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt())); // Wait first interval
+
+    for (int i = 1; i < _timeIntervals.length - 1; i++) {
       await _playSound();
+      await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
     }
 
-    for (double interval in _timeIntervals) {
-      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
-      await _playSound();
-    }
+    // ✅ Trigger before the last interval but don't count its time
+    await _playSound();
   }
 
   Future<void> _playSound() async {
@@ -182,16 +182,17 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   void _triggerHapticFeedback() async {
-    if (_timeIntervals.isEmpty) return;
+    if (_timeIntervals.length < 2) return; // Need at least 2 intervals
 
-    if (_newStart) {
+    await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt())); // Wait first interval
+
+    for (int i = 1; i < _timeIntervals.length - 1; i++) {
       Vibration.vibrate(duration: 50);
+      await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
     }
 
-    for (double interval in _timeIntervals) {
-      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
-      Vibration.vibrate(duration: 50);
-    }
+    // ✅ Trigger before the last interval but don't count its time
+    Vibration.vibrate(duration: 50);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -199,38 +200,33 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   //////////////////////////////////////////////////////////////////////////////
 
   void _playVisualFeedback() async {
-    if (_timeIntervals.isEmpty) return;
+    if (_timeIntervals.length < 2) return; // Need at least 2 intervals
 
     await _videoController.initialize();
     _videoController.setLooping(false);
 
     double originalDuration = _videoController.value.duration.inMilliseconds / 1000.0;
 
-    if (_newStart) {
-      double speed = originalDuration / _timeIntervals[0];
+    // Wait first interval
+    await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt()));
+
+    for (int i = 1; i < _timeIntervals.length - 1; i++) {
+      double speed = originalDuration / _timeIntervals[i];
       _videoController.setPlaybackSpeed(speed);
+      _videoController.seekTo(Duration.zero);
+      setState(() {
+        _videoController.play();
+      });
+      await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
+    }
+
+    // ✅ Play last interval, but use the previous interval length
+    double lastSpeed = originalDuration / _timeIntervals[_timeIntervals.length - 2]; // Use previous interval
+    _videoController.setPlaybackSpeed(lastSpeed);
+    _videoController.seekTo(Duration.zero);
+    setState(() {
       _videoController.play();
-    }
-
-    for (double interval in _timeIntervals) {
-      double speed = originalDuration / interval;
-      _videoController.setPlaybackSpeed(speed);
-      _videoController.seekTo(Duration.zero);
-      setState(() {
-        _videoController.play();
-      });
-      await Future.delayed(Duration(milliseconds: (interval * 1000).toInt()));
-    }
-
-    // Play one more time with the last duration
-    if (_timeIntervals.isEmpty) {
-      double speed = originalDuration / _timeIntervals.last;
-      _videoController.setPlaybackSpeed(speed);
-      _videoController.seekTo(Duration.zero);
-      setState(() {
-        _videoController.play();
-      });
-    }
+    });
   }
 
   //////////////////////////////////////////////////////////////////////////////

@@ -6,6 +6,7 @@ import logging
 import filter  # Ensure this module is available for detect_pulse function
 
 logging.basicConfig(level=logging.ERROR)
+bpm_history = []  # Global list to store last 3 BPM values
 
 
 def convert_peaks_to_intervals(peaks, fps, total_frames):
@@ -46,14 +47,16 @@ def convert_peaks_to_intervals(peaks, fps, total_frames):
 
 def calculate_bpm(intervals):
     """
-    Calculate BPM from peak intervals, excluding start and end gaps.
+    Calculate BPM from peak intervals, averaging over the last 3 cycles.
 
     Parameters:
     - intervals: List of time intervals (seconds) including start and end gaps.
 
     Returns:
-    - bpm: Calculated beats per minute (BPM), or None if not enough peaks.
+    - bpm: Calculated beats per minute (BPM) as an integer, or None if not enough peaks.
     """
+
+    global bpm_history  # Use global list to store previous BPM values
 
     if len(intervals) <= 2:
         return None  # Not enough peak-to-peak intervals
@@ -61,13 +64,28 @@ def calculate_bpm(intervals):
     # Remove the first and last intervals (start and end gaps)
     peak_intervals = intervals[1:-1]
 
+    if len(peak_intervals) == 0:
+        return None  # No valid peak intervals
+
     # Compute the average interval between peaks (seconds per beat)
     avg_interval = sum(peak_intervals) / len(peak_intervals)
 
-    # Convert to BPM: (60 seconds per minute) / (avg interval in seconds per beat)
-    bpm = 60.0 / avg_interval
+    # Convert to BPM
+    bpm = round(60.0 / avg_interval)  # Round to int
 
-    return bpm
+    # Store BPM in history
+    bpm_history.append(bpm)
+
+    # First cycle: return immediately
+    if len(bpm_history) == 1:
+        return bpm
+
+    # Keep only last 3 BPM values
+    if len(bpm_history) > 3:
+        bpm_history.pop(0)  # Remove oldest value
+
+    # Return the average of the last 3 values (rounded)
+    return round(sum(bpm_history) / len(bpm_history))
 
 
 def setup_video_route(app):
