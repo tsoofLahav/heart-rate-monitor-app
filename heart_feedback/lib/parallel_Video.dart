@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
@@ -21,13 +19,13 @@ class BiofeedbackScreen extends StatefulWidget {
 class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   CameraController? _cameraController;
   bool _isRecording = false;
-  String? _videoPath;
   List<double> _timeIntervals = [];
   double _bpm = 0;
   bool _unstableReading = false;
   bool _newStart = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
   VideoPlayerController _videoController = VideoPlayerController.asset("assets/video.mp4");
+  Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
 
   @override
   void initState() {
@@ -113,41 +111,26 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     var request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('video', filePath));
 
-    var startTime = DateTime.now(); // Start measuring time
+    // ✅ Handle previous response before sending the next video
+    if (_previousResponse != null) {
+      _previousResponse!.then((data) {
+        if (mounted && data.isNotEmpty) {
+          _handleBackendResponse(data); // Process the previous response
+        }
+      });
+    }
 
-    try {
-      var response = await request.send();
-      var endTime = DateTime.now(); // End measuring time
-      print("Backend response time: ${endTime.difference(startTime).inMilliseconds} ms");
-
+    // ✅ Send the video asynchronously without waiting
+    _previousResponse = request.send().then<Map<String, dynamic>>((response) async {
       if (response.statusCode == 200) {
         var jsonResponse = await response.stream.bytesToString();
-
-        // Ensure response is not empty before parsing
-        if (jsonResponse.isNotEmpty) {
-          var data = json.decode(jsonResponse);
-
-          // ✅ Check for server error first
-          if (data.containsKey('server_error') && data['server_error'] == true) {
-            print("Server error detected. Skipping processing.");
-            return; // Stop execution
-          }
-
-          // ✅ Ensure required values exist before using them
-          if (data.containsKey('heart_rate') && data['heart_rate'] != null) {
-            _handleBackendResponse(data);
-          } else {
-            print("Error: 'heart_rate' is missing or null in response.");
-          }
-        } else {
-          print("Error: Received empty response from backend.");
-        }
-      } else {
-        print("Failed to send video, status code: ${response.statusCode}");
+        return jsonResponse.isNotEmpty ? json.decode(jsonResponse) as Map<String, dynamic> : {};
       }
-    } catch (e) {
+      return {};
+    }).catchError((e) {
       print("Error sending video: $e");
-    }
+      return Future.value(<String, dynamic>{});
+    });
   }
 
   //////////////////////////////////////////////////////////////////////////////

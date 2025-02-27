@@ -7,6 +7,69 @@ import filter  # Ensure this module is available for detect_pulse function
 
 logging.basicConfig(level=logging.ERROR)
 
+
+def convert_peaks_to_intervals(peaks, fps, total_frames):
+    """
+    Convert peak indices into time intervals (gaps between peaks) in seconds,
+    including the gaps from the start of the interval to the first peak
+    and from the last peak to the end of the interval.
+
+    Parameters:
+    - peaks: List or array of detected peak indices.
+    - fps: Frames per second of the video.
+    - total_frames: Total number of frames in the intensities signal.
+
+    Returns:
+    - intervals: List of time intervals (seconds) including start and end gaps.
+    """
+
+    if len(peaks) == 0:
+        return [total_frames / fps]  # If no peaks, return the whole interval length
+
+    # Convert peak indices to time (seconds)
+    peak_times = np.array(peaks) / fps
+
+    # Include gap from start to first peak
+    start_gap = peak_times[0]  # Time from 0 to first peak
+
+    # Compute intervals between consecutive peaks
+    peak_intervals = np.diff(peak_times).tolist()
+
+    # Include gap from last peak to end of interval
+    end_gap = (total_frames / fps) - peak_times[-1]  # Time from last peak to end
+
+    # Combine all intervals
+    intervals = [start_gap] + peak_intervals + [end_gap]
+
+    return intervals
+
+
+def calculate_bpm(intervals):
+    """
+    Calculate BPM from peak intervals, excluding start and end gaps.
+
+    Parameters:
+    - intervals: List of time intervals (seconds) including start and end gaps.
+
+    Returns:
+    - bpm: Calculated beats per minute (BPM), or None if not enough peaks.
+    """
+
+    if len(intervals) <= 2:
+        return None  # Not enough peak-to-peak intervals
+
+    # Remove the first and last intervals (start and end gaps)
+    peak_intervals = intervals[1:-1]
+
+    # Compute the average interval between peaks (seconds per beat)
+    avg_interval = sum(peak_intervals) / len(peak_intervals)
+
+    # Convert to BPM: (60 seconds per minute) / (avg interval in seconds per beat)
+    bpm = 60.0 / avg_interval
+
+    return bpm
+
+
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
@@ -68,14 +131,23 @@ def setup_video_route(app):
             # Apply RLS filter and detect peaks
             filtered, peaks = filter.rls_filter(intensities, fps)
 
+            intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
+
+            bpm = calculate_bpm(intervals)
+
             time_stamps = np.arange(len(intensities)) / fps
 
             # Return processed data as a JSON response
+            # return jsonify({
+            #     'filtered': filtered,
+            #     'peaks': peaks,
+            #     'intensities': intensities,
+            #     'time_stamps': time_stamps.tolist()
+            # })
             return jsonify({
-                'filtered': filtered,
-                'peaks': peaks,
-                'intensities': intensities,
-                'time_stamps': time_stamps.tolist()
+                'intervals': intervals,
+                'bpm': bpm,
+                'not_reading': False
             })
 
         except Exception as e:
