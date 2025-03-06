@@ -156,7 +156,7 @@ def setup_video_route(app):
 
             # Return processed data as a JSON response
             return jsonify({
-                'filtered': clean_signal,
+                'filtered': clean_signal.tolist(),
                 'intensities': intensities,
                 'time_stamps': time_stamps.tolist()
             })

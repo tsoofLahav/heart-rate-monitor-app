@@ -4,10 +4,4 @@ numpy>=1.23.5,<2.0
 gunicorn==22.0.0
 scipy~=1.13.1
 plotext~=5.3.2
-heartpy~=1.2.7
 opencv-python-headless==4.8.1.78
-setuptools
-AdvEMDpy~=0.0.17
-pyhht~=0.1.0
-emd~=0.8.0
-pyemd~=1.0.0
