@@ -2,7 +2,7 @@ from scipy.signal import sosfiltfilt, butter
 import numpy as np
 
 
-def denoise_ppg(ppg_signal, fs, lowcut=0.5, highcut=5.0, order=4, pad_len=50):
+def denoise_ppg(ppg_signal, fs, lowcut=0.5, highcut=5.0, order=8, pad_len=50):
     """
     Denoise PPG signal using a band-pass filter with padding (SOS format).
     """
