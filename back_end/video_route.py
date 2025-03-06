@@ -3,7 +3,9 @@ import numpy as np
 import cv2
 import os
 import logging
-import filter  # Ensure this module is available for detect_pulse function
+from filter import denoise_ppg
+
+
 
 logging.basicConfig(level=logging.ERROR)
 bpm_history = []  # Global list to store last 3 BPM values
@@ -146,27 +148,23 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
-            # Apply RLS filter and detect peaks
-            filtered, peaks = filter.rls_filter(intensities, fps)
+            # intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
 
-            intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
-
-            bpm = calculate_bpm(intervals)
-
+            # bpm = calculate_bpm(intervals)
+            clean_signal = denoise_ppg(intensities, fps)
             time_stamps = np.arange(len(intensities)) / fps
 
             # Return processed data as a JSON response
-            # return jsonify({
-            #     'filtered': filtered,
-            #     'peaks': peaks,
-            #     'intensities': intensities,
-            #     'time_stamps': time_stamps.tolist()
-            # })
             return jsonify({
-                'intervals': intervals,
-                'bpm': bpm,
-                'not_reading': False
+                'filtered': clean_signal,
+                'intensities': intensities,
+                'time_stamps': time_stamps.tolist()
             })
+            # return jsonify({
+            #     'intervals': intervals,
+            #     'bpm': bpm,
+            #     'not_reading': False
+            # })
 
         except Exception as e:
             logging.error(f"Error processing video: {str(e)}")

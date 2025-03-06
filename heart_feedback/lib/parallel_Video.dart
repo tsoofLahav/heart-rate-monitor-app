@@ -20,7 +20,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   CameraController? _cameraController;
   bool _isRecording = false;
   List<double> _timeIntervals = [];
-  double _bpm = 0;
+  int _bpm = 0;
   bool _unstableReading = false;
   bool _newStart = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
