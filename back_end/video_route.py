@@ -4,8 +4,7 @@ import cv2
 import os
 import logging
 from filter import denoise_ppg
-
-
+import ast
 
 logging.basicConfig(level=logging.ERROR)
 bpm_history = []  # Global list to store last 3 BPM values
@@ -148,10 +147,13 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
+            with open("reference.txt", "r") as file:
+                reference_signal = ast.literal_eval(file.read())  # Convert string to list
+
             # intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
 
             # bpm = calculate_bpm(intervals)
-            clean_signal = denoise_ppg(intensities, fps)
+            clean_signal = denoise_ppg(intensities, fps, reference_signal)
             time_stamps = np.arange(len(intensities)) / fps
 
             # Return processed data as a JSON response
