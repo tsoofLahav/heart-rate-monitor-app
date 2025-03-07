@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'selection_screen.dart'; // Import CameraPage
+import 'welcome.dart'; // Import CameraPage
 
 void main() {
   runApp(MyApp());
@@ -10,7 +10,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SelectionScreen(), // Redirect directly to CameraPage
+      home: WelcomePage(), // Redirect directly to CameraPage
     );
   }
 }

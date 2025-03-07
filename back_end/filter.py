@@ -34,17 +34,22 @@ def dtw_align(reference_signal, target_signal):
     reference_signal = np.array(reference_signal).flatten()
     target_signal = np.array(target_signal).flatten()
 
+    # Ensure both signals have the same length
+    min_len = min(len(reference_signal), len(target_signal))
+    reference_signal = reference_signal[:min_len]
+    target_signal = target_signal[:min_len]
+
     print("DTW Reference Signal Shape:", reference_signal.shape)
     print("DTW Target Signal Shape:", target_signal.shape)
 
-    # Ensure all elements in DTW are treated as 1D scalars
+    # Run DTW
     distance, path = fastdtw(reference_signal.tolist(), target_signal.tolist(),
                              dist=lambda x, y: euclidean(np.atleast_1d(x), np.atleast_1d(y)))
 
     aligned_signal = np.zeros(len(target_signal))
 
     for (i, j) in path:
-        if i < len(reference_signal) and j < len(aligned_signal):  # Prevent index errors
+        if i < len(reference_signal) and j < len(aligned_signal):
             aligned_signal[j] = reference_signal[i]
 
     return aligned_signal.flatten()
@@ -66,4 +71,4 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 3: Apply LMS filtering for adaptive noise removal
     clean_signal = lms_filter(filtered_signal, aligned_reference)
 
-    return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten()
+    return clean_signal.flatten(), filtered_signal.flatten(), aligned_reference.flatten()
