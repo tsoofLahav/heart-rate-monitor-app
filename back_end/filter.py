@@ -41,16 +41,16 @@ def dtw_align(reference_signal, target_signal):
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
     """Denoises PPG using DTW for alignment and LMS for adaptive filtering."""
-    ppg_signal = np.array(ppg_signal)
-    reference_signal = np.array(reference_signal)
+    ppg_signal = np.array(ppg_signal).flatten()
+    reference_signal = np.array(reference_signal).flatten()
 
-    # Step 1: Band-pass filter to remove unwanted noise
+    # Step 1: Band-pass filter
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
     # Step 2: Align with reference signal using DTW
     aligned_reference = dtw_align(reference_signal, filtered_signal)
 
-    # Step 3: Apply LMS filtering for adaptive noise removal
+    # Step 3: Apply LMS filtering
     clean_signal = lms_filter(filtered_signal, aligned_reference)
 
     return clean_signal
