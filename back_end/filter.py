@@ -6,17 +6,14 @@ from scipy.spatial.distance import euclidean
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
-    signal = np.array(signal).flatten()  # Ensure 1D
     nyq = 0.5 * fs
     low, high = lowcut / nyq, highcut / nyq
     sos = butter(order, [low, high], btype='band', output='sos')
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.01, num_taps=32):
+def lms_filter(noisy_signal, reference_signal, mu=0.05, num_taps=64):
     """Applies LMS adaptive filtering."""
-    noisy_signal = np.array(noisy_signal).flatten()
-    reference_signal = np.array(reference_signal).flatten()
 
     n = len(noisy_signal)
     w = np.zeros(num_taps)  # Adaptive filter weights
@@ -57,6 +54,8 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     """Denoises PPG using DTW for alignment and LMS for adaptive filtering."""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
+    reference_signal /= np.max(np.abs(reference_signal))
+    ppg_signal /= np.max(np.abs(ppg_signal))
 
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
