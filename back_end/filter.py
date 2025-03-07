@@ -34,13 +34,15 @@ def lms_filter(noisy_signal, reference_signal, mu=0.01, num_taps=32):
 
 def dtw_align(reference_signal, target_signal):
     """Aligns the target signal to the reference signal using Dynamic Time Warping (DTW)."""
-    reference_signal = np.array(reference_signal).flatten()  # Ensure 1D
-    target_signal = np.array(target_signal).flatten()  # Ensure 1D
+    reference_signal = np.array(reference_signal).flatten()
+    target_signal = np.array(target_signal).flatten()
 
-    print("DTW Reference Signal Shape:", reference_signal.shape)  # Debugging
-    print("DTW Target Signal Shape:", target_signal.shape)  # Debugging
+    print("DTW Reference Signal Shape:", reference_signal.shape)
+    print("DTW Target Signal Shape:", target_signal.shape)
 
-    distance, path = fastdtw(reference_signal, target_signal, dist=euclidean)
+    # Ensure all elements in DTW are treated as 1D scalars
+    distance, path = fastdtw(reference_signal.tolist(), target_signal.tolist(),
+                             dist=lambda x, y: euclidean(np.atleast_1d(x), np.atleast_1d(y)))
 
     aligned_signal = np.zeros(len(target_signal))
 
@@ -48,7 +50,7 @@ def dtw_align(reference_signal, target_signal):
         if i < len(reference_signal) and j < len(aligned_signal):  # Prevent index errors
             aligned_signal[j] = reference_signal[i]
 
-    return aligned_signal.flatten()  # Ensure 1D output
+    return aligned_signal.flatten()
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
