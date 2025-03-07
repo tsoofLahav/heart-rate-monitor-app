@@ -2,11 +2,12 @@ from flask import Flask, request, jsonify
 import numpy as np
 import cv2
 import os
-import logging
 from filter import denoise_ppg
 import ast
+import logging
+import traceback
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
 bpm_history = []  # Global list to store last 3 BPM values
 
 
@@ -169,5 +170,5 @@ def setup_video_route(app):
             # })
 
         except Exception as e:
-            logging.error(f"Error processing video: {str(e)}")
+            logging.error("Error processing PPG:\n%s", traceback.format_exc())
             return jsonify({'server_error': True}), 500
