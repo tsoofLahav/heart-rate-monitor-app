@@ -154,12 +154,14 @@ def setup_video_route(app):
             # intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
 
             # bpm = calculate_bpm(intervals)
-            clean_signal = denoise_ppg(intensities, fps, reference_signal)
+            clean_signal, filtered_signal, aligned_reference = denoise_ppg(intensities, fps, reference_signal)
             time_stamps = np.arange(len(intensities)) / fps
 
             # Return processed data as a JSON response
             return jsonify({
-                'filtered': clean_signal.tolist(),
+                'filtered': filtered_signal.tolist(),
+                'final': clean_signal.tolist(),
+                'reference': aligned_reference.tolist(),
                 'intensities': intensities,
                 'time_stamps': time_stamps.tolist()
             })
