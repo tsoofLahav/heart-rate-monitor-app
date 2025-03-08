@@ -12,7 +12,7 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.5):
+def lms_filter(noisy_signal, reference_signal, mu=0.5, fps=30, alpha=0.5):
     """Applies LMS adaptive filtering with a weighted fading mixture."""
     num_taps = int(2 * fps)
     n = len(noisy_signal)
@@ -23,7 +23,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.5):
         x = reference_signal[i - num_taps:i]  # Input window
         y = np.dot(w, x)  # Predicted waveform
         e = noisy_signal[i - num_taps:i] - y  # Error as a vector
-        w += mu * np.outer(e, x) / np.linalg.norm(x)   # Update weight matrix using outer product
+        w = alpha * w + mu * np.outer(e, x)   # Update weight matrix using outer product
 
         # Apply a fading mixture instead of a hard sum
         filtered_signal[i - num_taps:i] = alpha * filtered_signal[i - num_taps:i] + (1 - alpha) * y
