@@ -49,7 +49,8 @@ def dtw_align(reference_signal, target_signal):
     reference_signal = np.roll(reference_signal, -start_shift)  # Shift reference
 
     # Remove the wrap-around part from the end
-    reference_signal = reference_signal[:len(target_signal)]
+    if start_shift > 0:
+        reference_signal[-start_shift:] = 0  # Zero out the wrapped part
 
     # Trim the actual signal from the end to match reference length
     target_signal = target_signal[:len(reference_signal)]
@@ -75,4 +76,5 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     clean_signal = lms_filter(aligned_signal, aligned_reference, fps=fs)
 
     return clean_signal.flatten(), filtered_signal.flatten(), aligned_reference.flatten()
+
 
