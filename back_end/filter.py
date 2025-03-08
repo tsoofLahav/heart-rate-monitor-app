@@ -59,8 +59,9 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     """Denoises PPG using DTW for alignment and LMS for adaptive filtering."""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
-    reference_signal = (reference_signal - np.mean(reference_signal)) / np.std(reference_signal)
-    ppg_signal = (ppg_signal - np.mean(ppg_signal)) / np.std(ppg_signal)
+    scaling_factor = np.std(reference_signal)  # Use reference std as a baseline
+    reference_signal = (reference_signal - np.mean(reference_signal)) / scaling_factor
+    ppg_signal = (ppg_signal - np.mean(ppg_signal)) / scaling_factor
 
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
