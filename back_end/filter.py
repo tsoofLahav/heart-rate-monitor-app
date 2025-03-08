@@ -14,7 +14,7 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
 
 def lms_filter(noisy_signal, reference_signal, mu=0.1, fps=30):
     """Applies LMS adaptive filtering with vector-based error and weights as a matrix."""
-    num_taps = 2 * fps  # Twice the FPS
+    num_taps = int(2 * fps)
     n = len(noisy_signal)
     w = np.zeros((num_taps, num_taps))  # Weight matrix for learning waveforms
     filtered_signal = np.zeros((n, num_taps))
