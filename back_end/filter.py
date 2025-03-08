@@ -12,7 +12,7 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.05, num_taps=64):
+def lms_filter(noisy_signal, reference_signal, mu=0.1, num_taps=32):
     """Applies LMS adaptive filtering."""
 
     n = len(noisy_signal)
