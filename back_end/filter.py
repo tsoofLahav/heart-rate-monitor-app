@@ -74,6 +74,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
 
     # Step 3: Apply LMS filtering for adaptive noise removal
     clean_signal = lms_filter(aligned_signal, aligned_reference, fps=fs)
+    aligned_reference = aligned_reference[:len(clean_signal)]
 
     return clean_signal.flatten(), filtered_signal.flatten(), aligned_reference.flatten()
 
