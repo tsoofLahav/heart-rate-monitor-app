@@ -157,9 +157,9 @@ def setup_video_route(app):
             clean_signal, filtered_signal, aligned_reference = denoise_ppg(intensities, fps, reference_signal)
             time_stamps = np.arange(len(intensities)) / fps
 
-            clean_signal = clean_signal[len(intensities)]
-            filtered_signal = filtered_signal[len(intensities)]
-            aligned_reference = aligned_reference[len(intensities)]
+            clean_signal = clean_signal[:len(intensities)]
+            filtered_signal = filtered_signal[:len(intensities)]
+            aligned_reference = aligned_reference[:len(intensities)]
 
             # Return processed data as a JSON response
             return jsonify({
