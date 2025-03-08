@@ -12,21 +12,23 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.01, fps=30):
-    """Applies LMS adaptive filtering with vector-based error and weights as a matrix."""
+def lms_filter(noisy_signal, reference_signal, mu=0.01, fps=30, alpha=0.5):
+    """Applies LMS adaptive filtering with a weighted fading mixture."""
     num_taps = int(2 * fps)
     n = len(noisy_signal)
     w = np.zeros((num_taps, num_taps))  # Weight matrix for learning waveforms
-    filtered_signal = np.zeros((n, num_taps))
+    filtered_signal = np.zeros(n)
 
     for i in range(num_taps, n):
         x = reference_signal[i - num_taps:i]  # Input window
         y = np.dot(w, x)  # Predicted waveform
         e = noisy_signal[i - num_taps:i] - y  # Error as a vector
         w += mu * np.outer(e, x)  # Update weight matrix using outer product
-        filtered_signal[i] = y
 
-    return np.sum(filtered_signal, axis=1)  # Sum across taps to get final output
+        # Apply a fading mixture instead of a hard sum
+        filtered_signal[i - num_taps:i] = alpha * filtered_signal[i - num_taps:i] + (1 - alpha) * y
+
+    return filtered_signal
 
 
 def dtw_align(reference_signal, target_signal):
