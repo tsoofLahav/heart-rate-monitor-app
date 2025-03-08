@@ -12,7 +12,7 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.5, fps=30, alpha=0.5):
+def lms_filter(noisy_signal, reference_signal, mu=0.1, fps=30, alpha=0.9):
     """Applies LMS adaptive filtering with a weighted fading mixture."""
     num_taps = int(2 * fps)
     n = len(noisy_signal)
