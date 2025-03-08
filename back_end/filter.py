@@ -52,7 +52,7 @@ def dtw_align(reference_signal, target_signal):
     if start_shift > 0:
         reference_signal[-start_shift:] = 0  # Zero out the wrapped part
 
-    # Trim the actual signal from the end to match reference length
+    # Trim the actual signal from the end to match reference length.
     target_signal = target_signal[:len(reference_signal)]
 
     return reference_signal, target_signal
