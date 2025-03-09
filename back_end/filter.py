@@ -10,45 +10,49 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.01, fps=30, alpha=0.99, artifact_threshold=1.5, beta=0.5, gamma=2.0):
-    """Applies LMS adaptive filtering with artifact detection and trust-based adaptation."""
+def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.2,
+               artifact_threshold=1.5):
+    """Adaptive LMS filter that avoids learning artifacts and corrects rhythm mismatches."""
+
     num_taps = int(fps * 2)
     n = len(noisy_signal)
-    w = np.zeros((num_taps, num_taps))  # Weight matrix for rhythmic learning
+    w = np.zeros((num_taps, num_taps))  # Weight matrix for learning patterns
     filtered_signal = np.zeros(n)
 
-    # 🔥 Compute Rolling Variance to Identify Artifacts 🔥
-    rolling_variance = np.convolve(np.abs(np.diff(noisy_signal, prepend=noisy_signal[0])), np.ones(num_taps), mode='same') / num_taps
+    # Rolling window variance to detect artifacts
+    rolling_variance = np.convolve(np.abs(np.diff(noisy_signal)), np.ones(num_taps), mode='same') / num_taps
 
     for i in range(0, n - num_taps, num_taps):  # Process in rhythmic chunks
         x = reference_signal[i:i + num_taps]  # Reference window
         y = np.dot(w, x)  # LMS Prediction
         e = noisy_signal[i:i + num_taps] - y  # Error vector
 
-        # 🔥 Use Rolling Variance for Artifact Detection 🔥
-        local_variance = rolling_variance[i]  # Current variance measure
-        is_artifact = local_variance > artifact_threshold  # Mark artifacts
+        # **Artifact Detection**
+        local_variance = np.std(noisy_signal[i:i + num_taps])  # Variability of current segment
+        artifact_strength = local_variance / (np.std(reference_signal[i:i + num_taps]) + 1e-8)  # How noisy it is
+        is_artifact = artifact_strength > artifact_threshold  # Mark artifacts
 
-        # 🔥 Trust Factor Based on Error-to-Reference Ratio 🔥
+        # **Trust Factor: When artifacts are large, ignore the noisy signal**
         error_norm = np.linalg.norm(e)
         ref_norm = np.linalg.norm(x)
+        input_norm = np.linalg.norm(noisy_signal[i:i + num_taps])
+
         trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))  # Higher = trust reference more
-        trust_factor = np.clip(trust_factor, 0.2, 0.9)  # Prevent extreme values
+        trust_factor = np.clip(trust_factor, 0.2, 0.9)  # Keep within range to avoid extreme corrections
 
-        # 🔥 Adaptive Learning Rate 🔥
-        adaptive_mu = 0 if is_artifact else mu / (1 + 0.1 * i / num_taps)  # No learning if artifact detected
+        # **Modify learning rate dynamically**
+        adaptive_mu = mu / (1 + 0.1 * i / num_taps)  # Decay learning over time
+        adaptive_mu = 0 if is_artifact else adaptive_mu  # If artifact detected, stop learning
 
-        # 🔥 Update LMS Weights (Avoid Learning Artifacts) 🔥
+        # **Prevent artifact learning in weight updates**
         w += adaptive_mu * np.outer(trust_factor * e, x)
 
-        # 🔥 Dynamic Blending Factor 🔥
-        input_norm = np.linalg.norm(noisy_signal[i:i + num_taps])
+        # **Blend correction: Ignore noisy parts**
         blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
-        blend_factor = np.clip(blend_factor, 0.2, 0.8)  # Keep within limits
+        blend_factor = np.clip(blend_factor, 0.2, 0.8)  # Prevent extreme changes
 
-        # 🔥 Apply Final Blending (More Reference in Noisy Regions) 🔥
         if is_artifact:
-            filtered_signal[i:i + num_taps] = y  # Fully trust reference if artifact detected
+            filtered_signal[i:i + num_taps] = y  # Fully trust reference when artifact detected
         else:
             filtered_signal[i:i + num_taps] = blend_factor * y + (1 - blend_factor) * noisy_signal[i:i + num_taps]
 
