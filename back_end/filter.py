@@ -10,31 +10,37 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.02, fps=30, alpha=0.99, beta=0.5, gamma=1.5):
-    """Applies LMS adaptive filtering with a weighted fading mixture, learning in rhythmic steps."""
+def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.2):
+    """Applies LMS adaptive filtering with artifact correction and rhythmic learning."""
     num_taps = int(fps * 2)
     n = len(noisy_signal)
     w = np.zeros((num_taps, num_taps))  # Weight matrix for learning waveforms
     filtered_signal = np.zeros(n)
 
-    for i in range(0, n - num_taps, num_taps):  # Jump in steps of num_taps
-        x = reference_signal[i:i + num_taps]  # Take a full rhythmic window
-        y = np.dot(w, x)  # Predicted waveform
-        e = noisy_signal[i:i + num_taps] - y  # Vector error
+    for i in range(0, n - num_taps, num_taps):  # Process in rhythmic chunks
+        x = reference_signal[i:i + num_taps]  # Reference window
+        y = np.dot(w, x)  # LMS Prediction
+        e = noisy_signal[i:i + num_taps] - y  # Error vector
 
-        # Compute trust factor: How much LMS trusts the reference vs. input
+        # Measure how much LMS should trust the reference
         error_norm = np.linalg.norm(e)
         ref_norm = np.linalg.norm(x)
-        trust_factor = np.tanh(beta * (error_norm / (ref_norm + 1e-8)) ** gamma)
+        input_norm = np.linalg.norm(noisy_signal[i:i + num_taps])
 
-        # Update weights with the outer product
-        w += mu * np.outer(trust_factor * e, x)
+        # Trust factor: When artifacts are large, rely **more** on reference
+        trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
 
-        # Blend noisy and LMS-predicted signal smoothly
-        filtered_signal[i:i + num_taps] = (1 - trust_factor) * noisy_signal[i:i + num_taps] + trust_factor * y
+        # Adaptive learning rate: Reduce impact over time to avoid instability
+        adaptive_mu = mu / (1 + 0.1 * i / num_taps)
+
+        # Weight update: More aggressive for artifacts, softer for rhythm
+        w += adaptive_mu * np.outer(trust_factor * e, x)
+
+        # Blend correction: Use **more reference when artifacts are strong**
+        blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))  # Closer to 1 when input is noisy
+        filtered_signal[i:i + num_taps] = blend_factor * y + (1 - blend_factor) * noisy_signal[i:i + num_taps]
 
     return filtered_signal
-
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
     """Denoises PPG using LMS filtering without DTW."""
