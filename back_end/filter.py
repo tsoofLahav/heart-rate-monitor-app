@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
 
-not_reading = False 
+not_reading = False
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
@@ -14,9 +14,9 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.5,
                artifact_threshold_high=1.5, artifact_threshold_low=0.5, min_trust=0.05, max_trust=0.95,
                max_artifact_streak=5):
-    """Adaptive LMS filter that avoids learning artifacts and corrects rhythm mismatches."""
+    """Adaptive LMS filter that fully replaces artifacts with reference but prioritizes real signal otherwise."""
 
-    global not_reading  # Use global variable to persist flag
+    global not_reading
 
     num_taps = int(fps * 2)
     n = len(noisy_signal)
@@ -58,20 +58,19 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
         trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
         trust_factor = np.clip(trust_factor, min_trust, max_trust)
 
-        # **Stronger Artifact Suppression**
+        # **Set Output Based on Artifact Detection**
         if is_artifact:
             adaptive_mu = 0  # Stop learning completely
-            blend_factor = 0.98  # Almost entirely correct with reference
+            filtered_signal[i:end_idx] = x  # Completely replace with reference
         else:
             adaptive_mu = mu / (1 + 0.1 * i / num_taps)
             blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
-            blend_factor = np.clip(blend_factor, 0.1, 0.8)
+            blend_factor = np.clip(blend_factor, 0.7, 0.95)  # Prioritize actual signal
 
-        # **Update Weights (Avoid learning artifacts)**
+            filtered_signal[i:end_idx] = blend_factor * noisy_signal[i:end_idx] + (1 - blend_factor) * y
+
+        # **Update Weights Only for Clean Segments**
         w[:len(x), :len(x)] += adaptive_mu * np.outer(trust_factor * e, x)
-
-        # **Final Signal Correction**
-        filtered_signal[i:end_idx] = blend_factor * y + (1 - blend_factor) * noisy_signal[i:end_idx]
 
     return filtered_signal
 
