@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
 
-
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
     nyq = 0.5 * fs
@@ -9,11 +8,12 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     sos = butter(order, [low, high], btype='band', output='sos')
     return sosfiltfilt(sos, signal)
 
-def adaptive_lms(noisy_signal, reference_signal, mu=0.01, beta=0.1, fps=30, alpha=0.99):
+def adaptive_lms(noisy_signal, reference_signal, mu=0.02, beta=0.2, gamma=2.0, fps=30):
     """
-    LMS filtering with adaptive correction:
-    - Beta controls how much to trust the reference (higher for noise, lower for rhythm shifts).
-    - Alpha stabilizes updates to avoid exploding values.
+    Improved LMS with stronger reference correction:
+    - Beta: Controls the reference signal influence.
+    - Gamma: Nonlinear enhancement to correct rhythm mismatches.
+    - Mu: Learning rate for weight updates.
     """
     num_taps = int(fps * 2)
     n = len(noisy_signal)
@@ -25,15 +25,15 @@ def adaptive_lms(noisy_signal, reference_signal, mu=0.01, beta=0.1, fps=30, alph
         y = np.dot(w, x)  # Predicted waveform
         e = noisy_signal[i - num_taps:i] - y  # Error vector
 
-        # Adaptive trust in reference: larger beta if noise is high
+        # Strengthen learning when signal deviates a lot
         error_norm = np.linalg.norm(e)
         ref_norm = np.linalg.norm(reference_signal[i - num_taps:i])
-        trust_factor = np.clip(beta * (error_norm / (ref_norm + 1e-8)), 0, 1)  # Avoid div by zero
+        trust_factor = np.tanh(beta * (error_norm / (ref_norm + 1e-8)) ** gamma)  # Nonlinear scaling
 
-        # Weighted weight update: slowly adapt rhythm, strongly correct noise
-        w = alpha * w + mu * np.outer(trust_factor * e, x)
+        # Weight update (stronger learning from reference when needed)
+        w += mu * np.outer(trust_factor * e, x)
 
-        # Weighted output mixture: trust noisy_signal more for rhythm, reference more for noise
+        # Output: weighted blend (increase reference influence)
         filtered_signal[i - num_taps:i] = (1 - trust_factor) * noisy_signal[i - num_taps:i] + trust_factor * y
 
     return filtered_signal
@@ -53,6 +53,4 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     clean_signal = adaptive_lms(filtered_signal, reference_signal, fps=fs)
 
     return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten()
-
-
 
