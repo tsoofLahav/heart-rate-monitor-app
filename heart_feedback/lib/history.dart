@@ -72,8 +72,8 @@ class SessionDetailsPage extends StatefulWidget {
 }
 
 class _SessionDetailsPageState extends State<SessionDetailsPage> {
-  List bpmData = [];
-  List hrvData = [];
+  List<FlSpot> bpmData = [];
+  List<FlSpot> hrvData = [];
 
   @override
   void initState() {
@@ -82,27 +82,22 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
   }
 
   Future<void> fetchSessionDetails() async {
-    final response = await http.get(Uri.parse('https://your-backend-url/get_session_details?session_id=${widget.sessionId}'));
+    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/get_session_details?session_id=${widget.sessionId}'));
     
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
 
-      if (data.isNotEmpty) {
-        // Convert timestamps to relative time (seconds since first measurement)
-        DateTime startTime = DateTime.parse(data.first['timestamp']);
+      setState(() {
+        bpmData = data.map<FlSpot>((e) => FlSpot(
+          e['timestamp'].toDouble(),  // Ensure timestamp is a double
+          e['bpm'].toDouble(),
+        )).toList();
 
-        setState(() {
-          bpmData = data.map<FlSpot>((e) {
-            double timeInSeconds = DateTime.parse(e['timestamp']).difference(startTime).inMilliseconds / 1000.0;
-            return FlSpot(timeInSeconds, (e['bpm'] as num).toDouble());
-          }).toList();
-
-          hrvData = data.map<FlSpot>((e) {
-            double timeInSeconds = DateTime.parse(e['timestamp']).difference(startTime).inMilliseconds / 1000.0;
-            return FlSpot(timeInSeconds, (e['hrv'] as num).toDouble());
-          }).toList();
-        });
-      }
+        hrvData = data.map<FlSpot>((e) => FlSpot(
+          e['timestamp'].toDouble(),
+          e['hrv'].toDouble(),
+        )).toList();
+      });
     }
   }
 

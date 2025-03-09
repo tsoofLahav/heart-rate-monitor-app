@@ -16,10 +16,14 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
 
     num_taps = int(fps * 2)
     n = len(noisy_signal)
-    w = np.zeros((num_taps, num_taps))  # Weight matrix for learning patterns
+
+    # **Fix 1:** Initialize `w` with small random values instead of zeros
+    w = np.random.normal(0.1, 0.05, (num_taps, num_taps))
+
     filtered_signal = np.zeros(n)
 
-    for i in range(0, n - num_taps, num_taps):  # Process in rhythmic chunks
+    # **Fix 3:** Extend loop to the full signal length
+    for i in range(0, n - num_taps + 1, num_taps):
         x = reference_signal[i:i + num_taps]  # Reference window
         y = np.dot(w, x)  # LMS Prediction
         e = noisy_signal[i:i + num_taps] - y  # Error vector
@@ -27,8 +31,8 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
         # **Artifact Detection**
         local_variance = np.std(noisy_signal[i:i + num_taps])
         ref_variance = np.std(reference_signal[i:i + num_taps])
-        artifact_strength = local_variance / (ref_variance + 1e-8)  # Compare noise level
-        is_artifact = artifact_strength > artifact_threshold  # Mark artifacts
+        artifact_strength = local_variance / (ref_variance + 1e-8)
+        is_artifact = artifact_strength > artifact_threshold
 
         # **Trust Factor: Ignore noisy input when artifacts are present**
         error_norm = np.linalg.norm(e)
@@ -38,19 +42,17 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
         trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
         trust_factor = np.clip(trust_factor, min_trust, max_trust)
 
-        # **Dynamic Learning Rate**
-        adaptive_mu = mu / (1 + 0.1 * i / num_taps)  # Decay learning over time
-        adaptive_mu = 0 if is_artifact else adaptive_mu  # Completely stop learning artifacts
+        # **Fix 2:** Stronger artifact suppression
+        if is_artifact:
+            adaptive_mu = 0  # Fully stop learning artifacts
+            blend_factor = 0.95  # Make correction heavily reference-dependent
+        else:
+            adaptive_mu = mu / (1 + 0.1 * i / num_taps)  # Decay learning over time
+            blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
+            blend_factor = np.clip(blend_factor, 0.1, 0.8)
 
         # **Prevent artifact learning in weight updates**
         w += adaptive_mu * np.outer(trust_factor * e, x)
-
-        # **Blend Factor: Adjust correction intensity**
-        if is_artifact:
-            blend_factor = 0.9  # Strongly correct artifacts
-        else:
-            blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
-            blend_factor = np.clip(blend_factor, 0.2, 0.8)
 
         # **Final Signal Correction**
         filtered_signal[i:i + num_taps] = blend_factor * y + (1 - blend_factor) * noisy_signal[i:i + num_taps]
