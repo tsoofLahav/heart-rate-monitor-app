@@ -54,7 +54,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
     # Step 2: Apply LMS filtering directly (no DTW)
-    clean_signal = adaptive_lms(filtered_signal, reference_signal, fps=fs)
+    clean_signal = lms_filter(filtered_signal, reference_signal, fps=fs)
 
     return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten()
 
