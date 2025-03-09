@@ -1,7 +1,5 @@
 import numpy as np
-from fastdtw import fastdtw
 from scipy.signal import butter, sosfiltfilt
-from scipy.spatial.distance import euclidean
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
@@ -11,10 +9,13 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     sos = butter(order, [low, high], btype='band', output='sos')
     return sosfiltfilt(sos, signal)
 
-
-def lms_filter(noisy_signal, reference_signal, mu=0.01, fps=30, alpha=0.99):
-    """Applies LMS adaptive filtering with a weighted fading mixture."""
-    num_taps = int(fps*2)
+def adaptive_lms(noisy_signal, reference_signal, mu=0.01, beta=0.1, fps=30, alpha=0.99):
+    """
+    LMS filtering with adaptive correction:
+    - Beta controls how much to trust the reference (higher for noise, lower for rhythm shifts).
+    - Alpha stabilizes updates to avoid exploding values.
+    """
+    num_taps = int(fps * 2)
     n = len(noisy_signal)
     w = np.zeros((num_taps, num_taps))  # Weight matrix for learning waveforms
     filtered_signal = np.zeros(n)
@@ -22,46 +23,23 @@ def lms_filter(noisy_signal, reference_signal, mu=0.01, fps=30, alpha=0.99):
     for i in range(num_taps, n):
         x = reference_signal[i - num_taps:i]  # Input window
         y = np.dot(w, x)  # Predicted waveform
-        e = noisy_signal[i - num_taps:i] - y  # Error as a vector
-        w = alpha * w + mu * np.outer(e, x)   # Update weight matrix using outer product
+        e = noisy_signal[i - num_taps:i] - y  # Error vector
 
-        # Apply a fading mixture instead of a hard sum
-        filtered_signal[i - num_taps:i] = alpha * filtered_signal[i - num_taps:i] + (1 - alpha) * y
+        # Adaptive trust in reference: larger beta if noise is high
+        error_norm = np.linalg.norm(e)
+        ref_norm = np.linalg.norm(reference_signal[i - num_taps:i])
+        trust_factor = np.clip(beta * (error_norm / (ref_norm + 1e-8)), 0, 1)  # Avoid div by zero
+
+        # Weighted weight update: slowly adapt rhythm, strongly correct noise
+        w = alpha * w + mu * np.outer(trust_factor * e, x)
+
+        # Weighted output mixture: trust noisy_signal more for rhythm, reference more for noise
+        filtered_signal[i - num_taps:i] = (1 - trust_factor) * noisy_signal[i - num_taps:i] + trust_factor * y
 
     return filtered_signal
 
-
-def dtw_align(reference_signal, target_signal):
-    """Aligns the target signal to the reference signal using DTW only for initial phase alignment."""
-    reference_signal = np.array(reference_signal).flatten()
-    target_signal = np.array(target_signal).flatten()
-
-    # Add padding to target signal before DTW
-    pad_length = len(reference_signal) - len(target_signal)
-    if pad_length > 0:
-        target_signal = np.concatenate((target_signal, np.zeros(pad_length)))
-
-    print("DTW Reference Signal Shape:", reference_signal.shape)
-    print("DTW Target Signal Shape:", target_signal.shape)
-
-    # Run DTW only for start position alignment
-    _, path = fastdtw(reference_signal.tolist(), target_signal.tolist(),
-                      dist=lambda x, y: euclidean(np.atleast_1d(x), np.atleast_1d(y)))
-    start_shift = path[0][0] - path[0][1]  # Get initial alignment shift
-    reference_signal = np.roll(reference_signal, -start_shift)  # Shift reference
-
-    # Remove the wrap-around part from the end
-    if start_shift > 0:
-        reference_signal[-start_shift:] = 0  # Zero out the wrapped part
-
-    # Trim the actual signal from the end to match reference length.
-    target_signal = target_signal[:len(reference_signal)]
-
-    return reference_signal, target_signal
-
-
 def denoise_ppg(ppg_signal, fs, reference_signal):
-    """Denoises PPG using DTW for initial alignment and LMS for adaptive filtering."""
+    """Denoises PPG using LMS filtering without DTW."""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
     scaling_factor = np.std(reference_signal)  # Use reference std as a baseline
@@ -71,12 +49,10 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
-    # Step 2: Align start position with DTW
-    aligned_reference, aligned_signal = dtw_align(reference_signal, filtered_signal)
+    # Step 2: Apply LMS filtering directly (no DTW)
+    clean_signal = adaptive_lms(filtered_signal, reference_signal, fps=fs)
 
-    # Step 3: Apply LMS filtering for adaptive noise removal
-    clean_signal = lms_filter(aligned_signal, aligned_reference, fps=fs)
+    return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten()
 
-    return clean_signal.flatten(), filtered_signal.flatten(), aligned_reference.flatten()
 
 
