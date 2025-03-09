@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
 
+not_reading = False 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
@@ -11,32 +12,45 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.5,
-               artifact_threshold=1.5, min_trust=0.1, max_trust=0.95):
+               artifact_threshold_high=1.5, artifact_threshold_low=0.5, min_trust=0.05, max_trust=0.95,
+               max_artifact_streak=5):
     """Adaptive LMS filter that avoids learning artifacts and corrects rhythm mismatches."""
+
+    global not_reading  # Use global variable to persist flag
 
     num_taps = int(fps * 2)
     n = len(noisy_signal)
 
-    # **Fix 1:** Revert w initialization back to zero
+    # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
-
     filtered_signal = np.zeros(n)
 
-    # **Fix 2:** Ensure full coverage of the signal
+    # **Artifact tracking**
+    artifact_streak = 0
+
     for i in range(0, n, num_taps):
-        end_idx = min(i + num_taps, n)  # Prevent index out of bounds
+        end_idx = min(i + num_taps, n)
 
-        x = reference_signal[i:end_idx]  # Reference window
-        y = np.dot(w[:len(x), :len(x)], x)  # LMS Prediction
-        e = noisy_signal[i:end_idx] - y  # Error vector
+        x = reference_signal[i:end_idx]
+        y = np.dot(w[:len(x), :len(x)], x)
+        e = noisy_signal[i:end_idx] - y
 
-        # **Artifact Detection**
+        # **Artifact Detection (Detect both high & low std)**
         local_variance = np.std(noisy_signal[i:end_idx])
         ref_variance = np.std(reference_signal[i:end_idx])
         artifact_strength = local_variance / (ref_variance + 1e-8)
-        is_artifact = artifact_strength > artifact_threshold
 
-        # **Trust Factor: Ignore noisy input when artifacts are present**
+        is_artifact = artifact_strength > artifact_threshold_high or artifact_strength < artifact_threshold_low
+
+        # **Track artifact streak**
+        if is_artifact:
+            artifact_streak += 1
+            if artifact_streak >= max_artifact_streak:
+                not_reading = True  # Too many artifacts in a row → Mark as unreliable
+        else:
+            artifact_streak = 0  # Reset streak when a clean segment is found
+
+        # **Trust Factor**
         error_norm = np.linalg.norm(e)
         ref_norm = np.linalg.norm(x)
         input_norm = np.linalg.norm(noisy_signal[i:end_idx])
@@ -44,16 +58,16 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
         trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
         trust_factor = np.clip(trust_factor, min_trust, max_trust)
 
-        # **Fix 3:** Stronger artifact suppression
+        # **Stronger Artifact Suppression**
         if is_artifact:
-            adaptive_mu = 0  # Fully stop learning artifacts
-            blend_factor = 0.95  # Make correction heavily reference-dependent
+            adaptive_mu = 0  # Stop learning completely
+            blend_factor = 0.98  # Almost entirely correct with reference
         else:
-            adaptive_mu = mu / (1 + 0.1 * i / num_taps)  # Decay learning over time
+            adaptive_mu = mu / (1 + 0.1 * i / num_taps)
             blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
             blend_factor = np.clip(blend_factor, 0.1, 0.8)
 
-        # **Prevent artifact learning in weight updates**
+        # **Update Weights (Avoid learning artifacts)**
         w[:len(x), :len(x)] += adaptive_mu * np.outer(trust_factor * e, x)
 
         # **Final Signal Correction**
