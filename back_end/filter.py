@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
 
+
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
     nyq = 0.5 * fs
@@ -8,35 +9,32 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     sos = butter(order, [low, high], btype='band', output='sos')
     return sosfiltfilt(sos, signal)
 
-def adaptive_lms(noisy_signal, reference_signal, mu=0.02, beta=0.2, gamma=2.0, fps=30):
-    """
-    Improved LMS with stronger reference correction:
-    - Beta: Controls the reference signal influence.
-    - Gamma: Nonlinear enhancement to correct rhythm mismatches.
-    - Mu: Learning rate for weight updates.
-    """
+
+def lms_filter(noisy_signal, reference_signal, mu=0.02, fps=30, alpha=0.99, beta=0.5, gamma=1.5):
+    """Applies LMS adaptive filtering with a weighted fading mixture, learning in rhythmic steps."""
     num_taps = int(fps * 2)
     n = len(noisy_signal)
     w = np.zeros((num_taps, num_taps))  # Weight matrix for learning waveforms
     filtered_signal = np.zeros(n)
 
-    for i in range(num_taps, n):
-        x = reference_signal[i - num_taps:i]  # Input window
+    for i in range(0, n - num_taps, num_taps):  # Jump in steps of num_taps
+        x = reference_signal[i:i + num_taps]  # Take a full rhythmic window
         y = np.dot(w, x)  # Predicted waveform
-        e = noisy_signal[i - num_taps:i] - y  # Error vector
+        e = noisy_signal[i:i + num_taps] - y  # Vector error
 
-        # Strengthen learning when signal deviates a lot
+        # Compute trust factor: How much LMS trusts the reference vs. input
         error_norm = np.linalg.norm(e)
-        ref_norm = np.linalg.norm(reference_signal[i - num_taps:i])
-        trust_factor = np.tanh(beta * (error_norm / (ref_norm + 1e-8)) ** gamma)  # Nonlinear scaling
+        ref_norm = np.linalg.norm(x)
+        trust_factor = np.tanh(beta * (error_norm / (ref_norm + 1e-8)) ** gamma)
 
-        # Weight update (stronger learning from reference when needed)
+        # Update weights with the outer product
         w += mu * np.outer(trust_factor * e, x)
 
-        # Output: weighted blend (increase reference influence)
-        filtered_signal[i - num_taps:i] = (1 - trust_factor) * noisy_signal[i - num_taps:i] + trust_factor * y
+        # Blend noisy and LMS-predicted signal smoothly
+        filtered_signal[i:i + num_taps] = (1 - trust_factor) * noisy_signal[i:i + num_taps] + trust_factor * y
 
     return filtered_signal
+
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
     """Denoises PPG using LMS filtering without DTW."""
