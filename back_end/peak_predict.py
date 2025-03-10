@@ -4,12 +4,27 @@ from statsmodels.tsa.ar_model import AutoReg
 
 # Global storage for learning from previous data
 previous_intervals = []
+previous_end_had_peak = False  # Global flag to handle repeated peaks
 
 
 def detect_peaks(signal, fps):
-    """Detect peaks in the signal using prominence and minimum distance criteria."""
-    min_distance = int(fps * 0.5)  # Avoid peaks too close (at least 0.5s apart)
+    """Detect peaks in the signal with additional handling for edges."""
+    global previous_end_had_peak
+
+    min_distance = int(fps * 0.25)  # Avoid peaks too close
     peaks, _ = find_peaks(signal, height=0, distance=min_distance, prominence=0.1)
+
+    # Handle edge cases for start and end
+    if len(peaks) > 0:
+        if signal[0] > signal[1]:  # First sample is a local max
+            peaks = np.insert(peaks, 0, 0)
+
+        if signal[-1] > signal[-2]:  # Last sample is a local max
+            peaks = np.append(peaks, len(signal) - 1)
+            previous_end_had_peak = True  # Flag to check in the next interval
+        else:
+            previous_end_had_peak = False
+
     return peaks
 
 
@@ -63,7 +78,7 @@ def ar_predict(intervals, steps=5):
 
 def process_peaks(filtered_signal, fps):
     """Process 15s filtered signal, detect peaks, predict next intervals, and return x4."""
-    global previous_intervals
+    global previous_intervals, previous_end_had_peak
 
     # Split 15s signal into 5s segments
     segment_length = int(5 * fps)
@@ -92,6 +107,7 @@ def process_peaks(filtered_signal, fps):
     predicted_intervals = ar_predict(all_intervals, steps=len(intervals_x1) + len(intervals_x2))
 
     # Save x1, x2, x3 for next round learning
-    previous_intervals = merge_intervals(merged_x1_x2, predicted_intervals[:len(intervals_x1)])
+    # previous_intervals = merge_intervals(merged_x1_x2, predicted_intervals[:len(intervals_x1)])
+    previous_end_had_peak = False
 
     return all_intervals, predicted_intervals[len(intervals_x1):]  # Return x4 to the main page

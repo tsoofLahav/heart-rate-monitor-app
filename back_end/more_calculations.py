@@ -1,42 +1,23 @@
+import numpy as np
+from data_route import store_measurement_internal, current_session_id  # Importing the function from the DB module
 
-def calculate_bpm(intervals):
-    """
-    Calculate BPM from peak intervals, averaging over the last 3 cycles.
 
-    Parameters:
-    - intervals: List of time intervals (seconds) including start and end gaps.
+def compute_bpm_hrv(intervals):
+    """Computes BPM and HRV from interval data and stores them in the database."""
+    if len(intervals) < 3:
+        raise ValueError("Not enough intervals to compute BPM and HRV")
 
-    Returns:
-    - bpm: Calculated beats per minute (BPM) as an integer, or None if not enough peaks.
-    """
+    # Remove first and last intervals
+    valid_intervals = intervals[1:-1]
 
-    global bpm_history  # Use global list to store previous BPM values
+    # Compute BPM
+    avg_interval = np.mean(valid_intervals)
+    bpm = 60 / avg_interval if avg_interval > 0 else 0
 
-    if len(intervals) <= 2:
-        return None  # Not enough peak-to-peak intervals
+    # Compute HRV (Standard deviation of NN intervals)
+    hrv = np.std(valid_intervals)
 
-    # Remove the first and last intervals (start and end gaps)
-    peak_intervals = intervals[1:-1]
+    # Store in DB
+    store_measurement_internal(current_session_id, bpm, hrv)
 
-    if len(peak_intervals) == 0:
-        return None  # No valid peak intervals
-
-    # Compute the average interval between peaks (seconds per beat)
-    avg_interval = sum(peak_intervals) / len(peak_intervals)
-
-    # Convert to BPM
-    bpm = round(60.0 / avg_interval)  # Round to int
-
-    # Store BPM in history
-    bpm_history.append(bpm)
-
-    # First cycle: return immediately
-    if len(bpm_history) == 1:
-        return bpm
-
-    # Keep only last 3 BPM values
-    if len(bpm_history) > 3:
-        bpm_history.pop(0)  # Remove oldest value
-
-    # Return the average of the last 3 values (rounded)
-    return round(sum(bpm_history) / len(bpm_history))
+    return bpm

@@ -4,7 +4,7 @@ import cv2
 import os
 from filter import denoise_ppg
 from peak_predict import process_peaks, merge_intervals, detect_peaks
-from more_calculations import calculate_bpm
+from more_calculations import compute_bpm_hrv
 import ast
 import logging
 import traceback
@@ -38,6 +38,7 @@ def setup_video_route(app):
             if not cap.isOpened():
                 raise Exception("Failed to open video file with OpenCV.")
 
+            # ############ part 1: frames->signal ###################
             fps = cap.get(cv2.CAP_PROP_FPS)
             frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -74,9 +75,6 @@ def setup_video_route(app):
             if not intensities:
                 raise Exception("No frames were processed from the video.")
 
-            with open("reference.txt", "r") as file:
-                reference_signal = ast.literal_eval(file.read())  # Convert string to list
-
             # ############ part 2: concatenating ###################
             segment_length = int(5 * fps)  # Define the length of one 5s part
 
@@ -93,6 +91,9 @@ def setup_video_route(app):
                     concatenated_intensities = concatenated_intensities[segment_length:] + intensities
 
                 # ############ part 3: filtering ###################
+                with open("reference.txt", "r") as file:
+                    reference_signal = ast.literal_eval(file.read())  # Convert string to list
+
                 clean_signal, filtered_signal, not_reading = denoise_ppg(concatenated_intensities, fps, reference_signal)
 
                 # handle not reading
@@ -100,8 +101,9 @@ def setup_video_route(app):
                 # ############ part 4: peak detection and learning ###################
                 intervals, predicted_intervals = process_peaks(clean_signal, fps)
 
-                # ############ part 5: storage ###################
-                # ############ part 6: computing for front ###################
+                # ############ part 5: computations and storage ###################
+                bpm = compute_bpm_hrv(intervals)
+                # ############ part 6: send to front ###################
                 # part for testing only
                 time_stamps = np.arange(len(clean_signal)) / fps
                 if round_count < 6:
