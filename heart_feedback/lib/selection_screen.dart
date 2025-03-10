@@ -56,9 +56,27 @@ class SelectionScreen extends StatelessWidget {
   }
 
   Widget _buildButton(BuildContext context, String label, String mode) {
+    Color buttonColor;
+    switch (mode) {
+      case 'visual':
+        buttonColor = const Color.fromARGB(255, 139, 228, 218);
+        break;
+      case 'haptic':
+        buttonColor = const Color.fromARGB(255, 195, 127, 121);
+        break;
+      case 'audio':
+        buttonColor = const Color.fromARGB(255, 137, 210, 151);
+        break;
+      default:
+        buttonColor = Colors.grey;
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: buttonColor,
+          foregroundColor: Colors.black, // Button text color
+        ),
         onPressed: () {
           Navigator.push(
             context,

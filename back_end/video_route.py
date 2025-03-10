@@ -154,7 +154,7 @@ def setup_video_route(app):
             # intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
 
             # bpm = calculate_bpm(intervals)
-            clean_signal, filtered_signal, aligned_reference = denoise_ppg(intensities, fps, reference_signal)
+            clean_signal, filtered_signal, aligned_reference, not_reading = denoise_ppg(intensities, fps, reference_signal)
             time_stamps = np.arange(len(intensities)) / fps
 
             clean_signal = clean_signal[:len(intensities)]

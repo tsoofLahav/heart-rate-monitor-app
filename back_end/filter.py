@@ -3,6 +3,7 @@ from scipy.signal import butter, sosfiltfilt
 
 not_reading = False
 
+
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
     nyq = 0.5 * fs
@@ -12,65 +13,51 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.5,
-               artifact_threshold_high=1.5, artifact_threshold_low=0.5, min_trust=0.05, max_trust=0.95,
-               max_artifact_streak=5):
-    """Adaptive LMS filter that fully replaces artifacts with reference but prioritizes real signal otherwise."""
-
-    global not_reading
+               artifact_threshold=1.5, min_trust=0.1, max_trust=0.95, consecutive_artifact_limit=5):
+    """Adaptive LMS filter that avoids learning artifacts and corrects rhythm mismatches."""
 
     num_taps = int(fps * 2)
     n = len(noisy_signal)
-
-    # **Initialize weight matrix**
-    w = np.zeros((num_taps, num_taps))
+    w = np.zeros((num_taps, num_taps))  # Weight matrix for learning patterns
     filtered_signal = np.zeros(n)
 
-    # **Artifact tracking**
-    artifact_streak = 0
+    consecutive_artifacts = 0
+    global not_reading  # Flag for prolonged artifacts
+    not_reading = False
 
-    for i in range(0, n, num_taps):
-        end_idx = min(i + num_taps, n)
+    for i in range(0, n - num_taps, num_taps):  # Process in rhythmic chunks
+        x = reference_signal[i:i + num_taps]  # Reference window
+        y = np.dot(w, x)  # LMS Prediction
+        e = noisy_signal[i:i + num_taps] - y  # Error vector
 
-        x = reference_signal[i:end_idx]
-        y = np.dot(w[:len(x), :len(x)], x)
-        e = noisy_signal[i:end_idx] - y
+        # **Unified Artifact Detection & Trust Factor**
+        ref_variance = np.std(reference_signal[i:i + num_taps]) + 1e-8
+        local_variance = np.std(noisy_signal[i:i + num_taps]) + 1e-8
+        artifact_strength = local_variance / ref_variance  # Compare noise level
 
-        # **Artifact Detection (Detect both high & low std)**
-        local_variance = np.std(noisy_signal[i:end_idx])
-        ref_variance = np.std(reference_signal[i:end_idx])
-        artifact_strength = local_variance / (ref_variance + 1e-8)
+        is_artifact = artifact_strength > artifact_threshold or artifact_strength < 1 / artifact_threshold  # High or Low Variance
+        trust_factor = np.clip(np.tanh(beta * (artifact_strength ** gamma)), min_trust, max_trust)
 
-        is_artifact = artifact_strength > artifact_threshold_high or artifact_strength < artifact_threshold_low
-
-        # **Track artifact streak**
+        # **Handle Consecutive Artifacts**
         if is_artifact:
-            artifact_streak += 1
-            if artifact_streak >= max_artifact_streak:
-                not_reading = True  # Too many artifacts in a row → Mark as unreliable
+            consecutive_artifacts += 1
         else:
-            artifact_streak = 0  # Reset streak when a clean segment is found
+            consecutive_artifacts = 0
 
-        # **Trust Factor**
-        error_norm = np.linalg.norm(e)
-        ref_norm = np.linalg.norm(x)
-        input_norm = np.linalg.norm(noisy_signal[i:end_idx])
+        if consecutive_artifacts >= consecutive_artifact_limit:
+            not_reading = True  # Trigger the global flag
 
-        trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
-        trust_factor = np.clip(trust_factor, min_trust, max_trust)
+        # **Dynamic Learning Rate**
+        adaptive_mu = 0 if is_artifact else mu / (1 + 0.1 * i / num_taps)  # Stop learning artifacts
 
-        # **Set Output Based on Artifact Detection**
+        # **Update Weights**
+        w += adaptive_mu * np.outer(trust_factor * e, x)
+
+        # **Final Signal Correction**
         if is_artifact:
-            adaptive_mu = 0  # Stop learning completely
-            filtered_signal[i:end_idx] = x  # Completely replace with reference
+            filtered_signal[i:i + num_taps] = x  # Fully trust reference when artifact detected
         else:
-            adaptive_mu = mu / (1 + 0.1 * i / num_taps)
-            blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
-            blend_factor = np.clip(blend_factor, 0.7, 0.95)  # Prioritize actual signal
-
-            filtered_signal[i:end_idx] = blend_factor * noisy_signal[i:end_idx] + (1 - blend_factor) * y
-
-        # **Update Weights Only for Clean Segments**
-        w[:len(x), :len(x)] += adaptive_mu * np.outer(trust_factor * e, x)
+            filtered_signal[i:i + num_taps] = trust_factor * y + (1 - trust_factor) * noisy_signal[i:i + num_taps]
 
     return filtered_signal
 
@@ -89,5 +76,5 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 2: Apply LMS filtering directly (no DTW)
     clean_signal = lms_filter(filtered_signal, reference_signal, fps=fs)
 
-    return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten()
+    return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten(), not_reading
 
