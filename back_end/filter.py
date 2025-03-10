@@ -2,8 +2,10 @@ import numpy as np
 from scipy.signal import butter, sosfiltfilt
 from scipy.signal import correlate
 from scipy.interpolate import interp1d
+import logging
 
 not_reading = False
+logging.basicConfig(level=logging.DEBUG)
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
