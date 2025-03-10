@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart'; // Needed for haptic feedback
 import 'package:video_player/video_player.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class BiofeedbackScreen extends StatefulWidget {
   final String mode; // Mode selection flag
@@ -16,22 +17,26 @@ class BiofeedbackScreen extends StatefulWidget {
   _BiofeedbackScreenState createState() => _BiofeedbackScreenState();
 }
 
-class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
+class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTickerProviderStateMixin{
   CameraController? _cameraController;
   bool _isRecording = false;
   List<double> _timeIntervals = [];
   int _bpm = 0;
   bool _unstableReading = false;
-  bool _newStart = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
-  VideoPlayerController _videoController = VideoPlayerController.asset("assets/video.mp4");
+  late AnimationController _animationController;
   Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
 
   @override
   void initState() {
     super.initState();
     _initCamera();
-    _videoController = VideoPlayerController.asset("assets/video.mp4")..initialize();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 100),
+      lowerBound: 0.8,
+      upperBound: 1.2,
+    );
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -202,32 +207,17 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   void _playVisualFeedback() async {
     if (_timeIntervals.length < 2) return; // Need at least 2 intervals
 
-    await _videoController.initialize();
-    _videoController.setLooping(false);
-
-    double originalDuration = _videoController.value.duration.inMilliseconds / 1000.0;
-
-    // Wait first interval
-    await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt()));
+    await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt())); // Wait first interval
 
     for (int i = 1; i < _timeIntervals.length - 1; i++) {
-      double speed = originalDuration / _timeIntervals[i];
-      _videoController.setPlaybackSpeed(speed);
-      _videoController.seekTo(Duration.zero);
-      setState(() {
-        _videoController.play();
-      });
+      _animationController.forward; // Restart animation
       await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
     }
 
-    // ✅ Play last interval, but use the previous interval length
-    double lastSpeed = originalDuration / _timeIntervals[_timeIntervals.length - 2]; // Use previous interval
-    _videoController.setPlaybackSpeed(lastSpeed);
-    _videoController.seekTo(Duration.zero);
-    setState(() {
-      _videoController.play();
-    });
+    // ✅ Trigger before the last interval but don't count its time
+    _animationController.forward;
   }
+
 
   //////////////////////////////////////////////////////////////////////////////
   // STOP VIDEO RECORDING

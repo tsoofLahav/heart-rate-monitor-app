@@ -131,4 +131,4 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 2: Apply LMS filtering directly (no DTW)
     clean_signal = lms_filter(filtered_signal, reference_signal, fps=fs)
 
-    return clean_signal.flatten(), filtered_signal.flatten(), reference_signal.flatten(), not_reading
+    return clean_signal.flatten(), filtered_signal.flatten(), not_reading
