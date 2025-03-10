@@ -5,8 +5,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart'; // Needed for haptic feedback
-import 'package:video_player/video_player.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class BiofeedbackScreen extends StatefulWidget {
   final String mode; // Mode selection flag
@@ -243,6 +241,16 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   //////////////////////////////////////////////////////////////////////////////
   // CLEANUP RESOURCES
   //////////////////////////////////////////////////////////////////////////////
+    @override
+  void dispose() {
+    _animationController.dispose();
+    _cameraController?.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+  //////////////////////////////////////////////////////////////////////////////
+  // UI
+  //////////////////////////////////////////////////////////////////////////////
 
   @override
   Widget build(BuildContext context) {
@@ -263,15 +271,21 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
           ),
           SizedBox(height: 20),
           if (widget.mode == "visual")
-            SizedBox(
-              width: 300,
-              height: 200,
-              child: _videoController.value.isInitialized
-                  ? AspectRatio(
-                      aspectRatio: _videoController.value.aspectRatio,
-                      child: VideoPlayer(_videoController),
-                    )
-                  : Container(),
+            AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _animationController.value,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color.fromARGB(255, 183, 183, 183), // Customize color if needed
+                    ),
+                  ),
+                );
+              },
             ),
           SizedBox(height: 20),
           Text(
