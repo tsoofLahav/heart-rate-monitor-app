@@ -12,7 +12,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
     // Navigate to selection page after 1 second
-    Timer(Duration(seconds: 1), () {
+    Timer(Duration(seconds: 4), () {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => SelectionScreen()), // Replace with actual selection page
@@ -30,7 +30,7 @@ class _WelcomePageState extends State<WelcomePage> {
           children: [
             AnimatedOpacity(
               opacity: 1.0,
-              duration: Duration(milliseconds: 800),
+              duration: Duration(milliseconds: 2500),
               child: Text(
                 "Welcome to Heart Monitor",
                 style: TextStyle(

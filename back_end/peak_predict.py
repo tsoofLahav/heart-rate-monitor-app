@@ -48,7 +48,8 @@ def ar_predict(intervals, steps=5):
         return np.full(steps, np.mean(intervals))  # Default to mean interval
 
     # Train AutoRegressive model on past intervals
-    model = AutoReg(intervals, lags=3)
+    lags = min(3, len(intervals) - 1)
+    model = AutoReg(intervals, lags=lags)
     model_fit = model.fit()
 
     # Predict next intervals

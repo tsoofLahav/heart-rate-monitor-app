@@ -72,7 +72,9 @@ flutter:
   uses-material-design: true
   assets:
   - assets/boom.wav
-  - assets/video.mp4
+  - assets/history_icon.png
+  - assets/profile_icon.png
+  - assets/pulse.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
