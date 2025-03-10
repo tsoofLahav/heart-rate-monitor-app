@@ -3,18 +3,22 @@ import numpy as np
 import cv2
 import os
 from filter import denoise_ppg
+from peak_predict import process_peaks, merge_intervals
 from more_calculations import calculate_bpm, convert_peaks_to_intervals
 import ast
 import logging
 import traceback
 
 logging.basicConfig(level=logging.DEBUG)
-bpm_history = []  # Global list to store last 3 BPM values
+concatenated_intensities = []
+concatenated_intervals = []
+round_count = 0
 
 
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
+        global concatenated_intensities, round_count, concatenated_intervals
         try:
             # Receive video file from request
             file = request.files.get('video')
@@ -74,36 +78,55 @@ def setup_video_route(app):
                 reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
             # ############ part 2: concatenating ###################
+            segment_length = int(5 * fps)  # Define the length of one 5s part
 
-            # ############ part 3: filtering ###################
-            clean_signal, filtered_signal, aligned_reference, not_reading = denoise_ppg(intensities, fps, reference_signal)
+            if round_count < 3:
+                # First 3 rounds: Append the new intensities to build up the initial sequence
+                concatenated_intensities.extend(intensities)
+                round_count += 1
+                return jsonify({'server_error': True})
+            else:
+                # From 4th round onward: Remove first part, append new part (Keep only last 3 segments)
+                concatenated_intensities = concatenated_intensities[segment_length:] + intensities
 
-            # handle not reading
+                # ############ part 3: filtering ###################
+                clean_signal, filtered_signal, not_reading = denoise_ppg(intensities, fps, reference_signal)
 
-            # ############ part 4: peak detection and learning ###################
-            # peaks, future_peaks = peak_detection_and_forcast
+                # handle not reading
 
-            # ############ part 5: storage ###################
-            # ############ part 6: computing for front ###################
-            # part for testing only
-            time_stamps = np.arange(len(clean_signal)) / fps
-            intensities = intensities[:len(clean_signal)]
-            filtered_signal = filtered_signal[:len(clean_signal)]
-            aligned_reference = aligned_reference[:len(clean_signal)]
+                # ############ part 4: peak detection and learning ###################
+                intervals, future_intervals = process_peaks(clean_signal, fps)
 
-            # Return processed data as a JSON response
-            return jsonify({
-                'filtered': filtered_signal.tolist(),
-                'final': clean_signal.tolist(),
-                'reference': aligned_reference.tolist(),
-                'intensities': intensities,
-                'time_stamps': time_stamps.tolist()
-            })
-            # return jsonify({
-            #     'intervals': intervals,
-            #     'bpm': bpm,
-            #     'not_reading': False
-            # })
+                # ############ part 5: storage ###################
+                # ############ part 6: computing for front ###################
+                # part for testing only
+                time_stamps = np.arange(len(clean_signal)) / fps
+                filtered_signal = filtered_signal[:len(clean_signal)]
+                if round_count < 6:
+                    # First 3 rounds: Append the new intensities to build up the initial sequence
+                    concatenated_intervals = merge_intervals(concatenated_intervals, intervals)
+                    round_count += 1
+                    # Return processed data as a JSON response
+                    return jsonify({
+                        'filtered': filtered_signal.tolist(),
+                        'final': clean_signal.tolist(),
+                        'peaks': intervals.tolist(),
+                        'time_stamps': time_stamps.tolist()
+                    })
+                else:
+                    # Return processed data as a JSON response
+                    return jsonify({
+                        'filtered': filtered_signal.tolist(),
+                        'final': clean_signal.tolist(),
+                        'peaks': intervals.tolist(),
+                        'future peaks': concatenated_intervals.tolist(),
+                        'time_stamps': time_stamps.tolist()
+                    })
+                    # return jsonify({
+                    #     'intervals': intervals,
+                    #     'bpm': bpm,
+                    #     'not_reading': False
+                    # })
 
         except Exception as e:
             logging.error("Error processing PPG:\n%s", traceback.format_exc())

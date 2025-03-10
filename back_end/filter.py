@@ -52,7 +52,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
 
     global not_reading
 
-    num_taps = int(fps * 2)
+    num_taps = int(fps)
 
     # **Trim reference to 1.5 * num_taps**
     reference_signal = reference_signal[:int(3 * num_taps)]
