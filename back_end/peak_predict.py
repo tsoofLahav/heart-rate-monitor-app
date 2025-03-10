@@ -13,19 +13,22 @@ def detect_peaks(signal, fps):
     return peaks
 
 
-def compute_intervals(peaks, segment_length):
-    """Convert peaks to intervals, handling first and last interval corrections."""
+def compute_intervals(peaks, segment_length, fps):
+    """Convert peaks to intervals in seconds, handling first and last interval corrections."""
     if len(peaks) == 0:
-        return [segment_length]  # No peaks detected, treat the whole segment as one interval
+        return [segment_length / fps]  # No peaks detected, treat whole segment as one interval
 
     intervals = np.diff(peaks).tolist()  # Compute intervals between peaks
 
+    # Convert intervals from frames to seconds
+    intervals = [i / fps for i in intervals]
+
     # First interval correction (from start to first peak)
-    first_interval = peaks[0]  # From index 0 to first peak
+    first_interval = peaks[0] / fps  # From index 0 to first peak
     intervals.insert(0, first_interval)
 
     # Last interval correction (from last peak to the end)
-    last_interval = segment_length - peaks[-1]  # From last peak to segment end
+    last_interval = (segment_length - peaks[-1]) / fps  # From last peak to segment end
     intervals.append(last_interval)
 
     return intervals

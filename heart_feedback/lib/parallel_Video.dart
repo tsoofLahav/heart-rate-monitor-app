@@ -27,6 +27,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   late AnimationController _animationController;
   Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
   Color _circleColor = Colors.blue; // Default color
+  int _sessionId = 0; // Store session ID
 
 
   @override
@@ -64,14 +65,36 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   //////////////////////////////////////////////////////////////////////////////
   // START VIDEO RECORDING & PROCESSING
   //////////////////////////////////////////////////////////////////////////////
-
   Future<void> _startBiofeedback() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
 
+    // Request new session ID from backend
+    await _createNewSession();
+
+    if (_sessionId == null) {
+      print("Failed to start session, sessionId is null.");
+      return;
+    }
+
     _isRecording = true;
     _loopRecording();
-
     setState(() {});
+  }
+
+
+  Future<void> _createNewSession() async {
+    var url = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/start_session"); // Replace with actual backend URL
+    var response = await http.post(url, headers: {"Content-Type": "application/json"});
+
+    if (response.statusCode == 200) {
+      var jsonResponse = json.decode(response.body);
+      setState(() {
+        _sessionId = jsonResponse["session_id"]; // Store session ID
+      });
+      print("New session started with ID: $_sessionId");
+    } else {
+      print("Failed to start session: ${response.body}");
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -247,7 +270,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
       setState(() {});
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => GuessingScreen()), // Replace with actual screen
+        MaterialPageRoute(builder: (context) => GuessingScreen(sessionId: _sessionId)), // Replace with actual screen
       );
     }
   }
