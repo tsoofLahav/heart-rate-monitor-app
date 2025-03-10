@@ -47,9 +47,8 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=1.5,
-               artifact_threshold_high=1.5, artifact_threshold_low=0.5,
-               min_trust=0.05, max_trust=0.95, max_artifact_streak=5):
-    """Adaptive LMS filter with rhythm correction via cross-correlation + resampling."""
+               min_trust=0.05, max_trust=0.95, max_artifact_streak=5, trust_artifact_threshold=0.3):
+    """Adaptive LMS filter with trust-based artifact detection and rhythm correction."""
 
     global not_reading
 
@@ -60,13 +59,12 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=
 
     # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
+
     # Ensure signal length is a multiple of num_taps
     valid_length = (len(noisy_signal) // num_taps) * num_taps
-
-    # Trim signals to this valid length
     noisy_signal = noisy_signal[:valid_length]
     n = len(noisy_signal)
-    filtered_signal = np.zeros(n)  # Update output array size
+    filtered_signal = np.zeros(n)  # Output array
 
     # **Artifact tracking**
     artifact_streak = 0
@@ -74,18 +72,23 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=
     for i in range(0, n, num_taps):
         end_idx = min(i + num_taps, n)
 
-        # Align reference segment
+        # **Align Reference Segment**
         aligned_reference = align_reference(noisy_signal[i:end_idx], reference_signal, num_taps)
 
         x = aligned_reference[:end_idx - i]  # Trim to match chunk
-        y = np.dot(w, x)
-        e = noisy_signal[i:end_idx] - y
+        y = np.dot(w, x)  # LMS Prediction
+        e = noisy_signal[i:end_idx] - y  # Error vector
 
-        # **Artifact Detection**
-        local_variance = np.std(noisy_signal[i:end_idx])
-        ref_variance = np.std(x)
-        artifact_strength = local_variance / (ref_variance + 1e-8)
-        is_artifact = artifact_strength > artifact_threshold_high or artifact_strength < artifact_threshold_low
+        # **Trust Factor Calculation**
+        error_norm = np.linalg.norm(e)
+        ref_norm = np.linalg.norm(x)
+        input_norm = np.linalg.norm(noisy_signal[i:end_idx])
+
+        trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
+        trust_factor = np.clip(trust_factor, min_trust, max_trust)
+
+        # **Artifact Detection Based on Trust Factor**
+        is_artifact = trust_factor < trust_artifact_threshold  # If trust is too low, assume artifact
 
         # **Track artifact streak**
         if is_artifact:
@@ -95,24 +98,15 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=
         else:
             artifact_streak = 0  # Reset streak
 
-        # **Trust Factor**
-        error_norm = np.linalg.norm(e)
-        ref_norm = np.linalg.norm(x)
-        input_norm = np.linalg.norm(noisy_signal[i:end_idx])
-
-        trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
-        trust_factor = np.clip(trust_factor, min_trust, max_trust)
-
-        # **Set Output Based on Artifact Detection**
+        # **Set Output Based on Trust Factor**
         if is_artifact:
             adaptive_mu = 0  # Stop learning
             filtered_signal[i:end_idx] = x  # Fully replace with reference
         else:
             adaptive_mu = mu / (1 + 0.1 * i / num_taps)
-            blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
-            blend_factor = np.clip(blend_factor, 0.7, 0.95)  # Prioritize real signal
+            blend_factor = np.clip(1 - trust_factor, 0.7, 0.95)  # Lower trust = more reference
 
-            filtered_signal[i:end_idx] = blend_factor * noisy_signal[i:end_idx] + (1 - blend_factor) * y
+            filtered_signal[i:end_idx] = blend_factor * x + (1 - blend_factor) * noisy_signal[i:end_idx]
 
         # **Update Weights Only for Clean Segments**
         w += adaptive_mu * np.outer(trust_factor * e, x)
