@@ -1,11 +1,12 @@
 from flask import Flask, jsonify
 from video_route import setup_video_route
+# from data_route import data_bp
 import os
 
 app = Flask(__name__)
 
 setup_video_route(app)
-
+# app.register_blueprint(data_bp, url_prefix="/data")
 
 # Health check route
 @app.route('/health', methods=['GET'])
