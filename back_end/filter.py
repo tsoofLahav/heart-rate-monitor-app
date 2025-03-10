@@ -90,7 +90,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
 
         # **New Artifact Detection: More Sensitive**
         absolute_diff = np.mean(np.abs(noisy_signal[i:end_idx] - x))  # Avg absolute difference
-        is_artifact = trust_factor < trust_artifact_threshold or absolute_diff > 1.25 * np.std(x)  # More aggressive check
+        is_artifact = trust_factor < trust_artifact_threshold or absolute_diff > 1.5 * np.std(x)  # More aggressive check
 
         # **Track artifact streak**
         if is_artifact:

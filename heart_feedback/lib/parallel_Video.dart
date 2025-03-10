@@ -23,6 +23,8 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   List<double> _timeIntervals = [];
   int _bpm = 0;
   bool _unstableReading = false;
+  bool _loading = false;
+  bool _serverError = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
   late AnimationController _animationController;
   Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
@@ -169,20 +171,37 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
   void _handleBackendResponse(Map<String, dynamic> data) {
     setState(() {
-      _unstableReading = data['not_reading'];
-      _bpm = data['bpm'];
-      _timeIntervals = List<double>.from(data['intervals']);
-    });
+      // Reset states before processing new data
+      _loading = false;
+      _serverError = false;
+      _unstableReading = false;
 
-    if (_timeIntervals.isNotEmpty) {
-      if (widget.mode == "audio") {
-        _playSoundsWithIntervals();
-      } else if (widget.mode == "haptic") {
-        _triggerHapticFeedback();
-      } else if (widget.mode == "visual") {
-        _playVisualFeedback();
+      if (data.containsKey("server_error")) {
+        _serverError = true; // Indicate an error
+        print("Server error: ${data['server_error']}");
+      } else if (data.containsKey("loading")) {
+        _loading = true; // Indicate loading state
+      } else if (data.containsKey("not_reading")) {
+        _unstableReading = data["not_reading"];
+      } else if (data.containsKey("bpm") && data.containsKey("intervals")) {
+        _bpm = data["bpm"];
+        _timeIntervals = List<double>.from(data["intervals"]);
+
+        if (_timeIntervals.isNotEmpty) {
+          switch (widget.mode) {
+            case "audio":
+              _playSoundsWithIntervals();
+              break;
+            case "haptic":
+              _triggerHapticFeedback();
+              break;
+            case "visual":
+              _playVisualFeedback();
+              break;
+          }
+        }
       }
-    }
+    });
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -291,6 +310,19 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    // Determine the message to display
+    String message = "Place finger on camera"; // Default message
+
+    if (_loading) {
+      message = "Loading...";
+    } else if (_serverError) {
+      message = "Error, please restart the app or ask for support";
+    } else if (_unstableReading) {
+      message = "Please don't move/ place your finger";
+    } else if (_bpm > 0) { // Display BPM only if valid
+      message = "BPM: $_bpm";
+    }
+
     return Scaffold(
       backgroundColor: Colors.black, // Black background
       appBar: AppBar(title: Text('Biofeedback Screen')),
@@ -326,11 +358,13 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
             ),
           SizedBox(height: 20),
           Text(
-            _unstableReading ? "Unstable reading, place your finger" : "BPM: $_bpm",
+            message, // Dynamically updated message
             style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: _unstableReading ? Colors.red : Colors.white),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: _serverError ? Colors.red : Colors.white, // Red for errors
+            ),
+            textAlign: TextAlign.center,
           ),
           SizedBox(height: 20),
           Row(
