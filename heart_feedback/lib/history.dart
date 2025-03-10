@@ -82,23 +82,28 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
   }
 
   Future<void> fetchSessionDetails() async {
-    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/get_session_details?session_id=${widget.sessionId}'));
+    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/get_session_details?session_id=${widget.sessionId}'));
     
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
 
       setState(() {
         bpmData = data.map<FlSpot>((e) => FlSpot(
-          e['timestamp'].toDouble(),  // Ensure timestamp is a double
+          parseTimestamp(e['timestamp']),  // Ensure timestamp is a double
           e['bpm'].toDouble(),
         )).toList();
 
         hrvData = data.map<FlSpot>((e) => FlSpot(
-          e['timestamp'].toDouble(),
+          parseTimestamp(e['timestamp']),
           e['hrv'].toDouble(),
         )).toList();
       });
     }
+  }
+
+  double parseTimestamp(String timestamp) {
+    DateTime dateTime = DateTime.parse(timestamp);
+    return dateTime.millisecondsSinceEpoch.toDouble(); // Convert to double
   }
 
   @override
