@@ -77,9 +77,9 @@ def process_peaks(filtered_signal, fps):
     peaks_x2 = detect_peaks(x2, fps)
 
     # Convert peaks to intervals
-    intervals_x0 = compute_intervals(peaks_x0, segment_length)
-    intervals_x1 = compute_intervals(peaks_x1, segment_length)
-    intervals_x2 = compute_intervals(peaks_x2, segment_length)
+    intervals_x0 = compute_intervals(peaks_x0, segment_length, fps)
+    intervals_x1 = compute_intervals(peaks_x1, segment_length, fps)
+    intervals_x2 = compute_intervals(peaks_x2, segment_length, fps)
 
     # Merge overlapping intervals across segment boundaries
     merged_x0_x1 = merge_intervals(intervals_x0, intervals_x1)
