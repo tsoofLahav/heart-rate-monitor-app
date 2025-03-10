@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart'; // Needed for haptic feedback
 import 'dart:math';
+import 'guessing_screen.dart';
 
 class BiofeedbackScreen extends StatefulWidget {
   final String mode; // Mode selection flag
@@ -244,6 +245,10 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
       await _cameraController!.setFlashMode(FlashMode.off);
 
       setState(() {});
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => GuessingScreen()), // Replace with actual screen
+      );
     }
   }
 
