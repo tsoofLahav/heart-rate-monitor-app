@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart'; // Needed for haptic feedback
+import 'dart:math';
 
 class BiofeedbackScreen extends StatefulWidget {
   final String mode; // Mode selection flag
@@ -24,6 +25,8 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   final AudioPlayer _audioPlayer = AudioPlayer();
   late AnimationController _animationController;
   Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
+  Color _circleColor = Colors.blue; // Default color
+
 
   @override
   void initState() {
@@ -208,12 +211,18 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt())); // Wait first interval
 
     for (int i = 1; i < _timeIntervals.length - 1; i++) {
-      _animationController.forward; // Restart animation
+      setState(() {
+        _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)]; // Random color
+      });
+      _animationController.forward();
       await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
     }
 
     // ✅ Trigger before the last interval but don't count its time
-    _animationController.forward;
+    setState(() {
+      _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)];
+    });
+    _animationController.forward();
   }
 
 

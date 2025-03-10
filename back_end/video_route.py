@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 import os
 from filter import denoise_ppg
-from peak_predict import process_peaks, merge_intervals
+from peak_predict import process_peaks, merge_intervals, detect_peaks
 from more_calculations import calculate_bpm, convert_peaks_to_intervals
 import ast
 import logging
@@ -87,7 +87,10 @@ def setup_video_route(app):
                 return jsonify({'loading': True})
             else:
                 # From 4th round onward: Remove first part, append new part (Keep only last 3 segments)
-                concatenated_intensities = concatenated_intensities[segment_length:] + intensities
+                if round_count is 3:
+                    concatenated_intensities.extend(intensities)
+                else:
+                    concatenated_intensities = concatenated_intensities[segment_length:] + intensities
 
                 # ############ part 3: filtering ###################
                 clean_signal, filtered_signal, not_reading = denoise_ppg(intensities, fps, reference_signal)
@@ -95,22 +98,21 @@ def setup_video_route(app):
                 # handle not reading
 
                 # ############ part 4: peak detection and learning ###################
-                intervals, future_intervals = process_peaks(clean_signal, fps)
+                peaks = detect_peaks(clean_signal, fps)
 
                 # ############ part 5: storage ###################
                 # ############ part 6: computing for front ###################
                 # part for testing only
                 time_stamps = np.arange(len(clean_signal)) / fps
                 filtered_signal = filtered_signal[:len(clean_signal)]
-                round_count += 1
                 if round_count < 6:
                     # First 3 rounds: Append the new intensities to build up the initial sequence
-                    concatenated_intervals = merge_intervals(concatenated_intervals, intervals)
+                    # concatenated_intervals = merge_intervals(concatenated_intervals, intervals)
                     # Return processed data as a JSON response
                     return jsonify({
                         'filtered': filtered_signal.tolist(),
                         'final': clean_signal.tolist(),
-                        'intervals': intervals.tolist(),
+                        'peaks': peaks.tolist(),
                         'time_stamps': time_stamps.tolist()
                     })
                 else:
@@ -118,8 +120,8 @@ def setup_video_route(app):
                     return jsonify({
                         'filtered': filtered_signal.tolist(),
                         'final': clean_signal.tolist(),
-                        'intervals': intervals.tolist(),
-                        'predicted_intervals': concatenated_intervals.tolist(),
+                        # 'intervals': intervals.tolist(),
+                        # 'predicted_intervals': concatenated_intervals.tolist(),
                         'time_stamps': time_stamps.tolist()
                     })
                     # return jsonify({
