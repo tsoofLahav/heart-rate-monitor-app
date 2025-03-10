@@ -14,34 +14,38 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def align_reference(noisy_segment, reference_segment):
-    """Align reference using cross-correlation for shift and resampling for scaling."""
-    # Cross-correlation to find the best shift
-    correlation = correlate(noisy_segment, reference_segment, mode="full")
-    shift = np.argmax(correlation) - (len(reference_segment) - 1)
-    aligned_ref = np.roll(reference_segment, shift)
+def align_reference(noisy_signal, reference_signal, num_taps):
+    """Aligns a padded noisy signal with the reference using cross-correlation and resampling."""
+    pad_size = int((1.5 * num_taps - num_taps) / 2)  # Half of the extra reference length
+    padded_signal = np.pad(noisy_signal, (pad_size, pad_size), mode='edge')
 
-    # Resample reference to match noisy signal length
-    ref_indices = np.linspace(0, len(aligned_ref) - 1, num=len(noisy_segment))
-    interp_func = interp1d(np.arange(len(aligned_ref)), aligned_ref, kind="linear", fill_value="extrapolate")
-    resampled_ref = interp_func(ref_indices)
+    # Cross-correlation to find best shift
+    correlation = correlate(padded_signal[:int(1.5 * num_taps)], reference_signal, mode='valid')
+    shift = np.argmax(correlation) - (len(reference_signal) // 2)
 
-    return resampled_ref
+    # Apply shift correction
+    aligned_signal = np.roll(padded_signal, -shift)[:len(reference_signal)]
+
+    # Resampling to match structure
+    resample_factor = len(reference_signal) / len(aligned_signal)
+    resampler = interp1d(np.linspace(0, 1, len(aligned_signal)), aligned_signal, kind='cubic', fill_value="extrapolate")
+    aligned_signal = resampler(np.linspace(0, 1, len(reference_signal)))
+
+    return aligned_signal
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.5,
-               artifact_threshold_high=1.5, artifact_threshold_low=0.5, min_trust=0.05, max_trust=0.95,
-               max_artifact_streak=5):
-    """Adaptive LMS filter that fully replaces artifacts with reference but prioritizes real signal otherwise."""
+def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=1.5,
+               artifact_threshold_high=1.5, artifact_threshold_low=0.5,
+               min_trust=0.05, max_trust=0.95, max_artifact_streak=5):
+    """Adaptive LMS filter with rhythm correction via cross-correlation + resampling."""
 
     global not_reading
 
     num_taps = int(fps * 2)
-    ref_length = int(num_taps * 1.2)  # Reference slightly longer than num_taps
     n = len(noisy_signal)
 
-    # **Trim reference to sliding window size**
-    reference_signal = reference_signal[:ref_length]
+    # **Trim reference to 1.5 * num_taps**
+    reference_signal = reference_signal[:int(1.5 * num_taps)]
 
     # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
@@ -53,27 +57,26 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
     for i in range(0, n, num_taps):
         end_idx = min(i + num_taps, n)
 
-        # **Align and resample reference dynamically**
-        reference_window = reference_signal[:ref_length]  # Use sliding reference
-        x = align_reference(noisy_signal[i:end_idx], reference_window)
+        # Align reference segment
+        aligned_reference = align_reference(noisy_signal[i:end_idx], reference_signal, num_taps)
 
-        y = np.dot(w[:len(x), :len(x)], x)
+        x = aligned_reference[:end_idx - i]  # Trim to match chunk
+        y = np.dot(w, x)
         e = noisy_signal[i:end_idx] - y
 
-        # **Artifact Detection (Detect both high & low std)**
+        # **Artifact Detection**
         local_variance = np.std(noisy_signal[i:end_idx])
         ref_variance = np.std(x)
         artifact_strength = local_variance / (ref_variance + 1e-8)
-
         is_artifact = artifact_strength > artifact_threshold_high or artifact_strength < artifact_threshold_low
 
         # **Track artifact streak**
         if is_artifact:
             artifact_streak += 1
             if artifact_streak >= max_artifact_streak:
-                not_reading = True  # Too many artifacts in a row → Mark as unreliable
+                not_reading = True  # Too many artifacts → Mark as unreliable
         else:
-            artifact_streak = 0  # Reset streak when a clean segment is found
+            artifact_streak = 0  # Reset streak
 
         # **Trust Factor**
         error_norm = np.linalg.norm(e)
@@ -85,17 +88,17 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta
 
         # **Set Output Based on Artifact Detection**
         if is_artifact:
-            adaptive_mu = 0  # Stop learning completely
-            filtered_signal[i:end_idx] = x  # Completely replace with reference
+            adaptive_mu = 0  # Stop learning
+            filtered_signal[i:end_idx] = x  # Fully replace with reference
         else:
             adaptive_mu = mu / (1 + 0.1 * i / num_taps)
             blend_factor = 1 - (input_norm / (input_norm + ref_norm + 1e-8))
-            blend_factor = np.clip(blend_factor, 0.7, 0.95)  # Prioritize actual signal
+            blend_factor = np.clip(blend_factor, 0.7, 0.95)  # Prioritize real signal
 
             filtered_signal[i:end_idx] = blend_factor * noisy_signal[i:end_idx] + (1 - blend_factor) * y
 
         # **Update Weights Only for Clean Segments**
-        w[:len(x), :len(x)] += adaptive_mu * np.outer(trust_factor * e, x)
+        w += adaptive_mu * np.outer(trust_factor * e, x)
 
     return filtered_signal
 
