@@ -71,7 +71,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     // Request new session ID from backend
     await _createNewSession();
 
-    if (_sessionId == null) {
+    if (_sessionId == 0) {
       print("Failed to start session, sessionId is null.");
       return;
     }

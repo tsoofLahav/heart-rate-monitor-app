@@ -4,7 +4,7 @@ import cv2
 import os
 from filter import denoise_ppg
 from peak_predict import process_peaks, merge_intervals, detect_peaks
-from more_calculations import calculate_bpm, convert_peaks_to_intervals
+from more_calculations import calculate_bpm
 import ast
 import logging
 import traceback
