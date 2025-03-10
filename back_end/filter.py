@@ -47,7 +47,7 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=2.0,
-               min_trust=0.05, max_trust=0.95, max_artifact_streak=5, trust_artifact_threshold=0.8):
+               min_trust=0.05, max_trust=0.99, max_artifact_streak=5, trust_artifact_threshold=0.92):
     """Adaptive LMS filter with improved artifact detection and rhythm correction."""
 
     global not_reading
@@ -82,7 +82,6 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
         # **Trust Factor Calculation with Absolute Difference**
         error_norm = np.linalg.norm(e)
         ref_norm = np.linalg.norm(x)
-        input_norm = np.linalg.norm(noisy_signal[i:end_idx])
 
         trust_factor = np.tanh(beta * ((error_norm / (ref_norm + 1e-8)) ** gamma))
         trust_factor = np.clip(trust_factor, min_trust, max_trust)
