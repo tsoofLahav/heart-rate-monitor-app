@@ -84,7 +84,7 @@ def setup_video_route(app):
                 # First 3 rounds: Append the new intensities to build up the initial sequence
                 concatenated_intensities.extend(intensities)
                 round_count += 1
-                return jsonify({'server_error': True})
+                return jsonify({'loading': True})
             else:
                 # From 4th round onward: Remove first part, append new part (Keep only last 3 segments)
                 concatenated_intensities = concatenated_intensities[segment_length:] + intensities

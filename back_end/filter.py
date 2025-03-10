@@ -6,6 +6,7 @@ import logging
 
 not_reading = False
 logging.basicConfig(level=logging.DEBUG)
+w = None
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
@@ -48,6 +49,7 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=2.0,
                min_trust=0.05, max_trust=0.99, max_artifact_streak=5, trust_artifact_threshold=0.98):
+    global w
     """Adaptive LMS filter with improved artifact detection and rhythm correction."""
 
     global not_reading
@@ -58,7 +60,8 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
     reference_signal = reference_signal[:int(3 * num_taps)]
 
     # **Initialize weight matrix**
-    w = np.zeros((num_taps, num_taps))
+    if w is None:
+        w = np.zeros((num_taps, num_taps))
 
     # Ensure signal length is a multiple of num_taps
     valid_length = (len(noisy_signal) // num_taps) * num_taps
