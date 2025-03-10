@@ -44,14 +44,19 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=
     global not_reading
 
     num_taps = int(fps * 2)
-    n = len(noisy_signal)
 
     # **Trim reference to 1.5 * num_taps**
     reference_signal = reference_signal[:int(1.5 * num_taps)]
 
     # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
-    filtered_signal = np.zeros(n)
+    # Ensure signal length is a multiple of num_taps
+    valid_length = (len(noisy_signal) // num_taps) * num_taps
+
+    # Trim signals to this valid length
+    noisy_signal = noisy_signal[:valid_length]
+    n = len(noisy_signal)
+    filtered_signal = np.zeros(n)  # Update output array size
 
     # **Artifact tracking**
     artifact_streak = 0
