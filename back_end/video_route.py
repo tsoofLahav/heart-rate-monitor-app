@@ -73,12 +73,20 @@ def setup_video_route(app):
             with open("reference.txt", "r") as file:
                 reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
-            # intervals = convert_peaks_to_intervals(peaks, fps, len(intensities))
+            # ############ part 2: concatenating ###################
 
-            # bpm = calculate_bpm(intervals)
+            # ############ part 3: filtering ###################
             clean_signal, filtered_signal, aligned_reference, not_reading = denoise_ppg(intensities, fps, reference_signal)
-            time_stamps = np.arange(len(clean_signal)) / fps
 
+            # handle not reading
+
+            # ############ part 4: peak detection and learning ###################
+            # peaks, future_peaks = peak_detection_and_forcast
+
+            # ############ part 5: storage ###################
+            # ############ part 6: computing for front ###################
+            # part for testing only
+            time_stamps = np.arange(len(clean_signal)) / fps
             intensities = intensities[:len(clean_signal)]
             filtered_signal = filtered_signal[:len(clean_signal)]
             aligned_reference = aligned_reference[:len(clean_signal)]
