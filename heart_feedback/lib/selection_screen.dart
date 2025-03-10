@@ -11,42 +11,36 @@ class SelectionScreen extends StatelessWidget {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          SizedBox(height: 40), // More spacing at the top
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               "Choose Feedback Method",
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ),
+          SizedBox(height: 50), // More spacing before buttons
           _buildButton(context, "Visual", "visual"),
+          SizedBox(height: 20), // Increased spacing between buttons
           _buildButton(context, "Haptic", "haptic"),
+          SizedBox(height: 20),
           _buildButton(context, "Audio", "audio"),
           Spacer(),
           Padding(
-            padding: const EdgeInsets.only(bottom: 20.0),
+            padding: const EdgeInsets.only(bottom: 30.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                IconButton(
-                  icon: Image.asset('assets/history_icon.png'),
-                  iconSize: 50,
-                  onPressed: () {
-                    Navigator.push(
+                _buildIconButton(context, 'assets/history_icon.png', 40, () {
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => SessionListPage(),
-                    ),
+                    MaterialPageRoute(builder: (context) => SessionListPage()),
                   );
-                  },
-                ),
-                IconButton(
-                  icon: Image.asset('assets/profile_icon.png'),
-                  iconSize: 50,
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/profile');
-                  },
-                ),
+                }),
+                _buildIconButton(context, 'assets/profile_icon.png', 40, () {
+                  Navigator.pushNamed(context, '/profile');
+                }),
               ],
             ),
           ),
@@ -70,12 +64,14 @@ class SelectionScreen extends StatelessWidget {
       default:
         buttonColor = Colors.grey;
     }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+    return SizedBox(
+      width: MediaQuery.of(context).size.width * 0.7, // Buttons spread more across the screen
+      height: 60, // Larger button height
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonColor,
           foregroundColor: Colors.black, // Button text color
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
         onPressed: () {
           Navigator.push(
@@ -85,8 +81,16 @@ class SelectionScreen extends StatelessWidget {
             ),
           );
         },
-        child: Text(label),
+        child: Text(label, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
+    );
+  }
+
+  Widget _buildIconButton(BuildContext context, String assetPath, double size, VoidCallback onTap) {
+    return IconButton(
+      icon: Image.asset(assetPath),
+      iconSize: size, // Smaller icons
+      onPressed: onTap,
     );
   }
 }

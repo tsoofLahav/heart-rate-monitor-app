@@ -35,7 +35,7 @@ def merge_intervals(intervals1, intervals2):
     """Merges two sets of intervals by summing the last of the first set with the first of the second set."""
     if len(intervals1) > 0 and len(intervals2) > 0:
         merged_first = intervals1[-1] + intervals2[0]  # Merge last of first set with first of second set
-        merged_intervals = intervals1[:-1] + [merged_first] + intervals2[1:]  # Combine properly
+        merged_intervals = np.concatenate([intervals1[:-1], [merged_first], intervals2[1:]])  # Combine properly
     else:
         merged_intervals = intervals1 + intervals2  # In case one of them is empty
 
