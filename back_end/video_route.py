@@ -97,6 +97,9 @@ def setup_video_route(app):
                 clean_signal, filtered_signal, not_reading = denoise_ppg(concatenated_intensities, fps, reference_signal)
 
                 # handle not reading
+                if not_reading:
+                    concatenated_intensities = []
+                    return jsonify({'not_reading': True})
 
                 # ############ part 4: peak detection and learning ###################
                 intervals, predicted_intervals = process_peaks(clean_signal, fps)
