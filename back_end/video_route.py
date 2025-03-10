@@ -110,7 +110,7 @@ def setup_video_route(app):
                     return jsonify({
                         'filtered': filtered_signal.tolist(),
                         'final': clean_signal.tolist(),
-                        'peaks': intervals.tolist(),
+                        'intervals': intervals.tolist(),
                         'time_stamps': time_stamps.tolist()
                     })
                 else:
@@ -118,8 +118,8 @@ def setup_video_route(app):
                     return jsonify({
                         'filtered': filtered_signal.tolist(),
                         'final': clean_signal.tolist(),
-                        'peaks': intervals.tolist(),
-                        'future peaks': concatenated_intervals.tolist(),
+                        'intervals': intervals.tolist(),
+                        'predicted_intervals': concatenated_intervals.tolist(),
                         'time_stamps': time_stamps.tolist()
                     })
                     # return jsonify({
