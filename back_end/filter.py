@@ -56,7 +56,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=
     num_taps = int(fps * 2)
 
     # **Trim reference to 1.5 * num_taps**
-    reference_signal = reference_signal[:int(1.5 * num_taps)]
+    reference_signal = reference_signal[:int(3 * num_taps)]
 
     # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
