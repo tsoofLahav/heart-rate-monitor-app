@@ -17,23 +17,27 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
 
 
 def align_reference(noisy_signal, reference_signal, num_taps):
-    """Aligns a padded noisy signal with the reference using cross-correlation and resampling."""
-    pad_size = int((1.5 * num_taps - num_taps) / 2)  # Half of the extra reference length
-    padded_signal = np.pad(noisy_signal, (pad_size, pad_size), mode='edge')
+    """Aligns a reference signal to match a padded noisy signal using cross-correlation and resampling."""
 
-    # Cross-correlation to find best shift
-    correlation = correlate(padded_signal[:int(1.5 * num_taps)], reference_signal, mode='valid')
+    # **Pad Noisy Signal (Since It's Shorter)**
+    pad_size = int((1.5 * num_taps - num_taps) / 2)
+    padded_noisy_signal = np.pad(noisy_signal, (pad_size, pad_size), mode='edge')
+
+    # **Cross-Correlation: Find Best Shift**
+    correlation = correlate(padded_noisy_signal[:int(1.5 * num_taps)], reference_signal, mode='valid')
     shift = np.argmax(correlation) - (len(reference_signal) // 2)
 
-    # Apply shift correction
-    aligned_signal = np.roll(padded_signal, -shift)[:len(reference_signal)]
+    # **Shift & Trim Reference to Match Noisy Signal (Ignoring Padding)**
+    aligned_reference = np.roll(reference_signal, -shift)
+    aligned_reference = aligned_reference[pad_size:-pad_size]  # Trim to match the original noisy signal length
 
-    # Resampling to match structure
-    resample_factor = len(reference_signal) / len(aligned_signal)
-    resampler = interp1d(np.linspace(0, 1, len(aligned_signal)), aligned_signal, kind='cubic', fill_value="extrapolate")
-    aligned_signal = resampler(np.linspace(0, 1, len(reference_signal)))
+    # **Resampling to Match Structure (Stretch/Compress)**
+    resample_factor = len(noisy_signal) / len(aligned_reference)
+    resampler = interp1d(np.linspace(0, 1, len(aligned_reference)), aligned_reference, kind='cubic',
+                         fill_value="extrapolate")
+    aligned_reference = resampler(np.linspace(0, 1, len(noisy_signal)))
 
-    return aligned_signal
+    return aligned_reference  # Final reference, perfectly matched to noisy signal
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=0.7, gamma=1.5,
