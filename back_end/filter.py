@@ -13,7 +13,7 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, alpha=0.99, beta=0.7, gamma=1.5,
-               artifact_threshold=1.5, min_trust=0.1, max_trust=0.95, consecutive_artifact_limit=5):
+               artifact_threshold=1.5, min_trust=0.05, max_trust=0.95, consecutive_artifact_limit=5):
     """Adaptive LMS filter that avoids learning artifacts and corrects rhythm mismatches."""
 
     num_taps = int(fps * 2)

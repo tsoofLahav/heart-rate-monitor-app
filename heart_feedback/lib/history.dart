@@ -18,7 +18,7 @@ class _SessionListPageState extends State<SessionListPage> {
   }
 
   Future<void> fetchSessions() async {
-    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/get_sessions'));
+    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/get_sessions'));
     if (response.statusCode == 200) {
       setState(() {
         sessions = json.decode(response.body);
