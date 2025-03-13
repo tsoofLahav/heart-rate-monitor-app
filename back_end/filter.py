@@ -48,7 +48,7 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=2.0,
-               min_trust=0.05, max_trust=0.99, max_artifact_streak=5, trust_artifact_threshold=0.5):
+               min_trust=0.05, max_trust=0.95, max_artifact_streak=5, trust_artifact_threshold=0.5):
     """Adaptive LMS filter with improved artifact detection and rhythm correction."""
 
     global not_reading
@@ -71,15 +71,15 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
         end_idx = min(i + num_taps, n)
 
         # **Align Reference Segment**
-        aligned_reference = align_reference(noisy_signal[i:end_idx], reference_signal, num_taps)
+        x = align_reference(noisy_signal[i:end_idx], reference_signal, num_taps)
 
-        x = aligned_reference[:end_idx - i]  # Trim to match chunk
         # Ensure x has the correct length
-        if len(x) < num_taps:
-            x = np.pad(x, (0, num_taps - len(x)), mode='constant', constant_values=0)
+        signal = noisy_signal[i:end_idx]
+        if len(signal) < num_taps:
+            signal = np.pad(signal, (0, num_taps - len(signal)), mode='constant', constant_values=0)
 
         y = np.dot(w, x)  # LMS Prediction
-        e = noisy_signal[i:end_idx] - y  # Error vector
+        e = signal - y  # Error vector
 
         # **Trust Factor Calculation with Absolute Difference**
         error_norm = np.linalg.norm(e)
@@ -89,7 +89,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
         trust_factor = np.clip(trust_factor, min_trust, max_trust)
 
         # **New Artifact Detection: More Sensitive**
-        absolute_diff = np.mean(np.abs(noisy_signal[i:end_idx] - x))  # Avg absolute difference
+        absolute_diff = np.mean(np.abs(signal - x))  # Avg absolute difference
         is_artifact = trust_factor < trust_artifact_threshold or absolute_diff > 2 * np.std(x)  # More aggressive check
 
         # **Track artifact streak**
@@ -109,7 +109,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
             adaptive_mu = mu / (1 + 0.1 * i / num_taps)
             blend_factor = np.clip(1 - trust_factor, 0.6, 0.95)  # Lower trust = more reference
 
-            filtered_signal[i:end_idx] = blend_factor * x + (1 - blend_factor) * noisy_signal[i:end_idx]
+            filtered_signal[i:end_idx] = blend_factor * x + (1 - blend_factor) * signal
 
         # **Update Weights Only for Clean Segments**
         w += adaptive_mu * np.outer(trust_factor * e, x)
