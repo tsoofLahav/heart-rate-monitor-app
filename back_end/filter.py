@@ -61,7 +61,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
     # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
 
-    if len(noisy_signal) < (num_taps*5):
+    if len(noisy_signal) < (num_taps*15):
         noisy_signal = np.pad(noisy_signal, (0, num_taps*5 - len(noisy_signal)), mode='constant', constant_values=0)
     n = len(noisy_signal)
 
