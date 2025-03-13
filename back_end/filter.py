@@ -48,7 +48,7 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=2.0,
-               min_trust=0.05, max_trust=0.95, max_artifact_streak=5, trust_artifact_threshold=0.5):
+               min_trust=0.05, max_trust=0.95, max_artifact_streak=6, trust_artifact_threshold=0.5):
     """Adaptive LMS filter with improved artifact detection and rhythm correction."""
 
     global not_reading
@@ -91,7 +91,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
 
         # **New Artifact Detection: More Sensitive**
         absolute_diff = np.mean(np.abs(signal - x))  # Avg absolute difference
-        is_artifact = trust_factor < trust_artifact_threshold or absolute_diff > 2 * np.std(x)  # More aggressive check
+        is_artifact = trust_factor < trust_artifact_threshold or absolute_diff > 3 * np.std(x)  # More aggressive check
 
         # **Track artifact streak**
         if is_artifact:

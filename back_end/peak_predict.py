@@ -19,18 +19,18 @@ def detect_peaks(signal, fps):
     peaks, properties = find_peaks(signal, height=min_height, distance=min_distance, prominence=prominence)
 
     # **Handle the start of the signal**
-    if len(peaks) > 0 and peaks[0] <= 5:  # Peak too close to start
+    if len(peaks) > 0 and peaks[0] <= 3:  # Peak too close to start
         if previous_end_had_peak:
             peaks = peaks[1:]  # Remove if previous interval had a peak
         previous_end_had_peak = False  # Reset flag
 
     # **Handle the end of the signal**
-    if len(signal) > 5:
-        end_window = signal[-5:]  # Last 5 frames
-        max_idx = np.argmax(end_window) + (len(signal) - 5)  # Adjust index
+    if len(signal) > 3:
+        end_window = signal[-3:]  # Last 5 frames
+        max_idx = np.argmax(end_window) + (len(signal) - 3)  # Adjust index
 
         # Check if it's a valid peak (high enough & spaced properly)
-        if end_window[max_idx - (len(signal) - 5)] > min_height and (
+        if end_window[max_idx - (len(signal) - 3)] > min_height and (
                 len(peaks) == 0 or (max_idx - peaks[-1]) > min_distance
         ):
             peaks = np.append(peaks, max_idx)  # Add peak at the end
