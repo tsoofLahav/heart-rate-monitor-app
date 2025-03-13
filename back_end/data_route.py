@@ -12,7 +12,10 @@ DB_CONNECTION_STRING = os.getenv("AZURE_SQL_CONNECTION_STRING")
 
 
 def get_db_connection():
-    return pyodbc.connect(DB_CONNECTION_STRING)
+    db_conn_str = os.getenv("DB_CONNECTION_STRING")
+    if not db_conn_str:
+        raise ValueError("DB_CONNECTION_STRING is not set or empty")
+    return pyodbc.connect(db_conn_str)
 
 
 @data_bp.route('/start_session', methods=['POST'])
