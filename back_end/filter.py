@@ -102,6 +102,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
             not_reading = False
 
         # **Set Output Based on Artifact Detection**
+        x = x[:len(filtered_signal[i:end_idx])]
         if is_artifact:
             adaptive_mu = 0  # Stop learning
             filtered_signal[i:end_idx] = x  # Fully replace with reference

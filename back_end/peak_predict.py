@@ -11,8 +11,7 @@ def detect_peaks(signal, fps):
     """Detect peaks in the signal with additional handling for edges."""
     global previous_end_had_peak
 
-    min_distance = int(fps * 0.33)  # Avoid peaks too close
-    peaks, _ = find_peaks(signal, height=0, distance=min_distance, prominence=0.1)
+    peaks, _ = find_peaks(signal, height=0.5, distance=int(fps * 0.33), prominence=0.2)
 
     # Handle edge cases for start and end
     if len(peaks) > 0:
