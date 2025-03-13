@@ -8,21 +8,35 @@ previous_end_had_peak = False  # Global flag to handle repeated peaks
 
 
 def detect_peaks(signal, fps):
-    """Detect peaks in the signal with additional handling for edges."""
+    """Detect peaks in the signal with special handling for start and end cases."""
     global previous_end_had_peak
 
-    peaks, _ = find_peaks(signal, height=0.75, distance=int(fps * 0.33), prominence=0.3)
+    min_distance = int(fps * 0.25)  # Ensure peaks are spaced by at least 0.25s
+    prominence = 0.1  # Peak must stand out
+    min_height = 0.75  # Minimum height threshold
 
-    # Handle edge cases for start and end
-    if len(peaks) > 0:
-        if signal[0] > signal[1]:  # First sample is a local max
-            peaks = np.insert(peaks, 0, 0)
+    # Detect peaks normally
+    peaks, properties = find_peaks(signal, height=min_height, distance=min_distance, prominence=prominence)
 
-        if signal[-1] > signal[-2]:  # Last sample is a local max
-            peaks = np.append(peaks, len(signal) - 1)
-            previous_end_had_peak = True  # Flag to check in the next interval
+    # **Handle the start of the signal**
+    if len(peaks) > 0 and peaks[0] <= 5:  # Peak too close to start
+        if previous_end_had_peak:
+            peaks = peaks[1:]  # Remove if previous interval had a peak
+        previous_end_had_peak = False  # Reset flag
+
+    # **Handle the end of the signal**
+    if len(signal) > 5:
+        end_window = signal[-5:]  # Last 5 frames
+        max_idx = np.argmax(end_window) + (len(signal) - 5)  # Adjust index
+
+        # Check if it's a valid peak (high enough & spaced properly)
+        if end_window[max_idx - (len(signal) - 5)] > min_height and (
+                len(peaks) == 0 or (max_idx - peaks[-1]) > min_distance
+        ):
+            peaks = np.append(peaks, max_idx)  # Add peak at the end
+            previous_end_had_peak = True  # Set flag for next interval
         else:
-            previous_end_had_peak = False
+            previous_end_had_peak = False  # Reset if no peak added
 
     return peaks
 
