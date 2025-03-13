@@ -153,7 +153,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     // ✅ Ensure we only process the previous response when recording is NOT active
     if (_previousResponse != null) {
       _previousResponse!.then((data) {
-        if (mounted && data.isNotEmpty && !_isRecording) { 
+        if (mounted && data.isNotEmpty) { 
           _handleBackendResponse(data);
         }
       });
