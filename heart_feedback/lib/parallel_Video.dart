@@ -107,23 +107,29 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
 
     _isRecording = true;
-    
-    // Turn ON flash only once at the start of recording session
     await _cameraController!.setFlashMode(FlashMode.torch);
-
     await _cameraController!.startVideoRecording();
 
     while (_isRecording) {
-      await Future.delayed(Duration(seconds: 3));
+      final startTime = DateTime.now();  // Timestamp before stopping
+
+      await Future.delayed(Duration(seconds: 5));
 
       if (_isRecording) {
         try {
           final file = await _cameraController!.stopVideoRecording();
+          final stopTime = DateTime.now();  // Timestamp after stopping
+
+          print("Stopped recording at: $stopTime");
+          print("Time between stop and restart: ${stopTime.difference(startTime).inMilliseconds} ms");
+
           final filePath = file.path;
 
           await _sendVideoToBackend(filePath);
 
           if (_isRecording) {
+            final restartTime = DateTime.now();
+            print("Restarting recording at: $restartTime");
             await _cameraController!.startVideoRecording();
           }
         } catch (e) {
@@ -137,17 +143,18 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   // SEND VIDEO TO BACKEND & RECEIVE DATA
   //////////////////////////////////////////////////////////////////////////////
 
+  // ✅ SEND VIDEO WITHOUT WAITING & PROCESS DATA BETWEEN RECORDINGS
   Future<void> _sendVideoToBackend(String filePath) async {
     var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
 
     var request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('video', filePath));
 
-    // ✅ Handle previous response before sending the next video
+    // ✅ Ensure we only process the previous response when recording is NOT active
     if (_previousResponse != null) {
       _previousResponse!.then((data) {
-        if (mounted && data.isNotEmpty) {
-          _handleBackendResponse(data); // Process the previous response
+        if (mounted && data.isNotEmpty && !_isRecording) { 
+          _handleBackendResponse(data);
         }
       });
     }
