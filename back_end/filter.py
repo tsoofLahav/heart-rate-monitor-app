@@ -60,6 +60,9 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
 
     # **Initialize weight matrix**
     w = np.zeros((num_taps, num_taps))
+
+    if len(noisy_signal) < (num_taps*5):
+        noisy_signal = np.pad(noisy_signal, (0, num_taps*5 - len(noisy_signal)), mode='constant', constant_values=0)
     n = len(noisy_signal)
 
     filtered_signal = np.zeros(n)
@@ -72,8 +75,6 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
 
         # Ensure x has the correct length
         signal = noisy_signal[i:end_idx]
-        if len(signal) < num_taps:
-            signal = np.pad(signal, (0, num_taps - len(signal)), mode='constant', constant_values=0)
 
         # **Align Reference Segment**
         x = align_reference(signal, reference_signal, num_taps)
@@ -102,8 +103,6 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
             not_reading = False
 
         # **Set Output Based on Artifact Detection**
-        x = x[:len(filtered_signal[i:end_idx])]
-        signal = signal[:len(filtered_signal[i:end_idx])]
         if is_artifact:
             adaptive_mu = 0  # Stop learning
             filtered_signal[i:end_idx] = x  # Fully replace with reference
