@@ -70,13 +70,13 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.2, gamma=
     for i in range(0, n, num_taps):
         end_idx = min(i + num_taps, n)
 
-        # **Align Reference Segment**
-        x = align_reference(noisy_signal[i:end_idx], reference_signal, num_taps)
-
         # Ensure x has the correct length
         signal = noisy_signal[i:end_idx]
         if len(signal) < num_taps:
             signal = np.pad(signal, (0, num_taps - len(signal)), mode='constant', constant_values=0)
+
+        # **Align Reference Segment**
+        x = align_reference(signal, reference_signal, num_taps)
 
         y = np.dot(w, x)  # LMS Prediction
         e = signal - y  # Error vector
