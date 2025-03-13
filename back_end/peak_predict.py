@@ -8,7 +8,7 @@ previous_end_had_peak = False  # Global flag to handle repeated peaks
 
 
 def detect_peaks(signal, fps):
-    """Detect peaks in the signal with special handling for start and end cases."""
+    """Detect peaks in the signal while handling edge cases for start and end."""
     global previous_end_had_peak
 
     min_distance = int(fps * 0.25)  # Ensure peaks are spaced by at least 0.25s
@@ -18,25 +18,20 @@ def detect_peaks(signal, fps):
     # Detect peaks normally
     peaks, properties = find_peaks(signal, height=min_height, distance=min_distance, prominence=prominence)
 
-    # **Handle the start of the signal**
-    if len(peaks) > 0 and peaks[0] <= 3:  # Peak too close to start
-        if previous_end_had_peak:
-            peaks = peaks[1:]  # Remove if previous interval had a peak
-        previous_end_had_peak = False  # Reset flag
+    # **Check if a peak exists in the last 3 frames**
+    if peaks[-1] >= len(signal)-3:  # If a significant peak exists
+        previous_end_had_peak = True
+    else:
+        previous_end_had_peak = False
 
-    # **Handle the end of the signal**
-    if len(signal) > 3:
-        end_window = signal[-3:]  # Last 5 frames
-        max_idx = np.argmax(end_window) + (len(signal) - 3)  # Adjust index
+    # **Handle the beginning of the signal**
+    if len(signal) >= 10 and not previous_end_had_peak:
+        start_window = signal[:3]  # First 3 frames
+        max_idx = np.argmax(start_window)  # Index of max value in first 3 frames
 
-        # Check if it's a valid peak (high enough & spaced properly)
-        if end_window[max_idx - (len(signal) - 3)] > min_height and (
-                len(peaks) == 0 or (max_idx - peaks[-1]) > min_distance
-        ):
-            peaks = np.append(peaks, max_idx)  # Add peak at the end
-            previous_end_had_peak = True  # Set flag for next interval
-        else:
-            previous_end_had_peak = False  # Reset if no peak added
+        # If the max is above threshold and no peak is too close (10 frames)
+        if start_window[max_idx] > min_height and (len(peaks) == 0 or peaks[0] > 10):
+            peaks = np.insert(peaks, 0, max_idx)  # Add peak at the start
 
     return peaks
 

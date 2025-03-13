@@ -111,26 +111,26 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     await _cameraController!.startVideoRecording();
 
     while (_isRecording) {
-      final startTime = DateTime.now();  // Timestamp before stopping
-
       await Future.delayed(Duration(seconds: 5));
 
       if (_isRecording) {
         try {
           final file = await _cameraController!.stopVideoRecording();
-          final stopTime = DateTime.now();  // Timestamp after stopping
+          final filePath = file.path;
+          final stopTime = DateTime.now();
 
           print("Stopped recording at: $stopTime");
-          print("Time between stop and restart: ${stopTime.difference(startTime).inMilliseconds} ms");
 
-          final filePath = file.path;
+          // ✅ 1. Process previous response first (if available)
+          await _receiveResponse();
 
-          await _sendVideoToBackend(filePath);
+          // ✅ 2. Send the new video to the backend
+          _sendVideoToBackend(filePath);
 
+          // ✅ 3. Restart recording immediately
           if (_isRecording) {
-            final restartTime = DateTime.now();
-            print("Restarting recording at: $restartTime");
             await _cameraController!.startVideoRecording();
+            print("Restarted recording at: ${DateTime.now()}");
           }
         } catch (e) {
           print("Error stopping or starting video recording: $e");
@@ -139,36 +139,47 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     }
   }
 
+
   //////////////////////////////////////////////////////////////////////////////
   // SEND VIDEO TO BACKEND & RECEIVE DATA
   //////////////////////////////////////////////////////////////////////////////
-
-  // ✅ SEND VIDEO WITHOUT WAITING & PROCESS DATA BETWEEN RECORDINGS
-  Future<void> _sendVideoToBackend(String filePath) async {
-    var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
-
-    var request = http.MultipartRequest('POST', uri)
-      ..files.add(await http.MultipartFile.fromPath('video', filePath));
-
-    // ✅ Ensure we only process the previous response when recording is NOT active
+  
+  // ✅ HANDLE RECEIVING RESPONSE
+  Future<void> _receiveResponse() async {
     if (_previousResponse != null) {
-      _previousResponse!.then((data) {
-        if (mounted && data.isNotEmpty) { 
+      try {
+        final data = await _previousResponse!;
+        if (mounted && data.isNotEmpty) {
           _handleBackendResponse(data);
         }
-      });
-    }
-
-    // ✅ Send the video asynchronously without waiting
-    _previousResponse = request.send().then<Map<String, dynamic>>((response) async {
-      if (response.statusCode == 200) {
-        var jsonResponse = await response.stream.bytesToString();
-        return jsonResponse.isNotEmpty ? json.decode(jsonResponse) as Map<String, dynamic> : {};
+      } catch (e) {
+        print("Error receiving backend response: $e");
+      } finally {
+        _previousResponse = null;  // Clear response after processing
       }
-      return {};
-    }).catchError((e) {
-      print("Error sending video: $e");
-      return Future.value(<String, dynamic>{});
+    }
+  }
+
+  // ✅ HANDLE SENDING VIDEO (fire-and-forget)
+  void _sendVideoToBackend(String filePath) {
+    var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
+
+    var request = http.MultipartRequest('POST', uri);
+
+    http.MultipartFile.fromPath('video', filePath).then((file) {
+      request.files.add(file);
+
+      // ✅ Store response future separately for next cycle
+      _previousResponse = request.send().then<Map<String, dynamic>>((response) async {
+        if (response.statusCode == 200) {
+          var jsonResponse = await response.stream.bytesToString();
+          return jsonResponse.isNotEmpty ? json.decode(jsonResponse) as Map<String, dynamic> : {};
+        }
+        return {};
+      }).catchError((e) {
+        print("Error sending video: $e");
+        return {};
+      });
     });
   }
 
