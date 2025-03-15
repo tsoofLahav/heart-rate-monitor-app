@@ -12,7 +12,7 @@ def detect_peaks(signal, fps):
     global previous_end_had_peak
 
     min_distance = int(fps * 0.33)  # Ensure peaks are spaced by at least 0.25s
-    prominence = 0.2  # Peak must stand out
+    prominence = 0.1  # Peak must stand out
     min_height = 0.75  # Minimum height threshold
 
     # Detect peaks normally
@@ -105,7 +105,8 @@ def ar_predict(intervals, target_time=10.0):
         predicted_intervals.append(next_interval)
         total_time += next_interval
 
-    predicted_intervals[0] -= last_interval
+    if predicted_intervals:
+        predicted_intervals[0] -= last_interval
     return np.array(predicted_intervals)
 
 
