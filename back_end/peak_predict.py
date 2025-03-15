@@ -92,7 +92,7 @@ def ar_predict(intervals, target_time=10.0):
     total_time = 0.0
 
     # Recursive forecasting: Use past predictions for future ones
-    recent_intervals = intervals[-lags:].tolist()  # Start with real data
+    recent_intervals = list(intervals[-lags:])
 
     while total_time < target_time:
         next_interval = model_fit.predict(start=len(recent_intervals) - lags, end=len(recent_intervals) - lags)[0]
@@ -130,7 +130,6 @@ def split_intervals_exactly(intervals, target_time=5.0):
 
 def process_peaks(filtered_signal, fps):
     """Process 15s filtered signal, detect peaks, predict next intervals, and return x4."""
-    global previous_intervals
 
     # Convert to time
     segment_length = 5.0  # Fixed at 5s
