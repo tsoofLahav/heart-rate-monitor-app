@@ -3,7 +3,7 @@ from scipy.signal import find_peaks
 from statsmodels.tsa.ar_model import AutoReg
 
 # Global storage for learning from previous data
-previous_intervals = []
+# previous_intervals = []
 previous_end_had_peak = False  # Global flag to handle repeated peaks
 
 
@@ -11,8 +11,8 @@ def detect_peaks(signal, fps):
     """Detect peaks in the signal while handling edge cases for start and end."""
     global previous_end_had_peak
 
-    min_distance = int(fps * 0.25)  # Ensure peaks are spaced by at least 0.25s
-    prominence = 0.1  # Peak must stand out
+    min_distance = int(fps * 0.33)  # Ensure peaks are spaced by at least 0.25s
+    prominence = 0.2  # Peak must stand out
     min_height = 0.75  # Minimum height threshold
 
     # Detect peaks normally
@@ -68,54 +68,86 @@ def merge_intervals(intervals1, intervals2):
     return merged_intervals
 
 
-def ar_predict(intervals, steps=5):
-    """Predicts next intervals using an Autoregressive model without error correction."""
-    if len(intervals) < 5:  # Not enough data to train AR model
-        return np.full(steps, np.mean(intervals))  # Default to mean interval
+def ar_predict(intervals, target_time=10.0):
+    """Predicts intervals until total sum reaches or slightly exceeds target_time."""
 
-    # Train AutoRegressive model on past intervals
-    lags = min(3, len(intervals) - 1)
+    if len(intervals) < 7:  # Ensure enough data for training
+        return np.full(10, np.mean(intervals))  # Default to mean interval
+
+    last_interval = intervals[-1]
+    target_time += last_interval
+
+    # Remove first and last interval from training
+    intervals = intervals[1:-1] if len(intervals) > 2 else intervals
+
+    lags = min(7, len(intervals) - 1)
+
+    if lags < 1:
+        return np.full(10, np.mean(intervals))  # If trimming leaves too little data
+
     model = AutoReg(intervals, lags=lags)
     model_fit = model.fit()
 
-    # Predict next intervals
-    predicted_intervals = model_fit.predict(len(intervals), len(intervals) + steps - 1)
+    predicted_intervals = []
+    total_time = 0.0
 
-    return predicted_intervals
+    # Recursive forecasting: Use past predictions for future ones
+    recent_intervals = intervals[-lags:].tolist()  # Start with real data
+
+    while total_time < target_time:
+        next_interval = model_fit.predict(start=len(recent_intervals) - lags, end=len(recent_intervals) - lags)[0]
+        recent_intervals.append(next_interval)  # Append prediction for next step
+
+        if total_time + next_interval >= target_time:  # Stop exactly at 10s
+            predicted_intervals.append(target_time - total_time)  # Trim last interval
+            break
+
+        predicted_intervals.append(next_interval)
+        total_time += next_interval
+
+    predicted_intervals[0] -= last_interval
+    return np.array(predicted_intervals)
+
+
+def split_intervals_exactly(intervals, target_time=5.0):
+    """Splits intervals into a segment that sums exactly to target_time, even if cutting an interval."""
+    chunk1, chunk2 = [], []
+    sum_time = 0.0
+
+    for i, interval in enumerate(intervals):
+        if sum_time + interval < target_time:
+            chunk1.append(interval)
+            sum_time += interval
+        else:
+            remaining_time = target_time - sum_time
+            chunk1.append(remaining_time)  # Cut interval to fit
+            chunk2.append(interval - remaining_time)  # Move remainder to next part
+            chunk2.extend(intervals[i + 1:])  # Add remaining intervals to chunk2
+            break  # Stop after reaching 5s
+
+    return np.array(chunk1), np.array(chunk2)
 
 
 def process_peaks(filtered_signal, fps):
     """Process 15s filtered signal, detect peaks, predict next intervals, and return x4."""
-    global previous_intervals, previous_end_had_peak
+    global previous_intervals
 
-    # Split 15s signal into 5s segments
-    segment_length = int(5 * fps)
-    x0 = filtered_signal[:segment_length]
-    x1 = filtered_signal[segment_length:2 * segment_length]
-    x2 = filtered_signal[2 * segment_length:]
+    # Convert to time
+    segment_length = 5.0  # Fixed at 5s
+    total_length = 15.0  # Full signal
 
-    # Detect peaks in each segment
-    peaks_x0 = detect_peaks(x0, fps)
-    peaks_x1 = detect_peaks(x1, fps)
-    peaks_x2 = detect_peaks(x2, fps)
+    # Detect peaks and convert to intervals
+    peaks = detect_peaks(filtered_signal, fps)
+    intervals = compute_intervals(peaks, total_length, fps)
 
-    # Convert peaks to intervals
-    intervals_x0 = compute_intervals(peaks_x0, segment_length, fps)
-    intervals_x1 = compute_intervals(peaks_x1, segment_length, fps)
-    intervals_x2 = compute_intervals(peaks_x2, segment_length, fps)
+    # **Predict next slightly over 10s**
+    predicted_intervals = ar_predict(intervals, target_time=10)
 
-    # Merge overlapping intervals across segment boundaries
-    merged_x0_x1 = merge_intervals(intervals_x0, intervals_x1)
-    merged_x1_x2 = merge_intervals(intervals_x1, intervals_x2)
+    # **Trim predicted intervals into 5s chunks**
+    x3_intervals, x4_intervals = split_intervals_exactly(predicted_intervals, segment_length)
 
-    # Use only the merged x0-x2 intervals for prediction
-    all_intervals = merge_intervals(merged_x0_x1, intervals_x2)
+    # Save x1, x2, x3 for learning
+    # previous_intervals = np.concatenate([x1_intervals, x2_intervals, x3_intervals])
 
-    # Predict next intervals (x3, x4)
-    predicted_intervals = ar_predict(all_intervals, steps=len(intervals_x1) + len(intervals_x2))
+    return intervals, x4_intervals  # Return x4 to main page
 
-    # Save x1, x2, x3 for next round learning
-    # previous_intervals = merge_intervals(merged_x1_x2, predicted_intervals[:len(intervals_x1)])
-    previous_end_had_peak = False
-
-    return all_intervals, predicted_intervals[len(intervals_x1):]  # Return x4 to the main page

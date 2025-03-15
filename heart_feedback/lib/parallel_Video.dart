@@ -178,7 +178,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
         return {};
       }).catchError((e) {
         print("Error sending video: $e");
-        return {};
+        return <String, dynamic>{};
       });
     });
   }
