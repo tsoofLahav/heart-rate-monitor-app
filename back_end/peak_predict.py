@@ -59,7 +59,10 @@ def ar_predict(intervals, target_time=10.0):
     target_time = target_time + last_interval
 
     intervals = merge_intervals(past_intervals, intervals)
-    past_intervals = intervals
+    if len(intervals) > 60:
+        past_intervals = intervals[-60:]
+    else:
+        past_intervals = intervals
 
     n = int(math.sqrt(len(past_intervals)))
 

@@ -107,31 +107,11 @@ def setup_video_route(app):
                 # ############ part 5: computations and storage ###################
                 bpm = compute_bpm_hrv(intervals)
                 # ############ part 6: send to front ###################
-                # part for testing only
-                time_stamps = np.arange(len(clean_signal)) / fps
-                if round_count < 6:
-                    concatenated_intervals = merge_intervals(concatenated_intervals, predicted_intervals)
-                    # Return processed data as a JSON response
-                    return jsonify({
-                        'filtered': filtered_signal.tolist(),
-                        'final': clean_signal.tolist(),
-                        'intervals': intervals,
-                        'time_stamps': time_stamps.tolist()
-                    })
-                else:
-                    # Return processed data as a JSON response
-                    return jsonify({
-                        'filtered': filtered_signal.tolist(),
-                        'final': clean_signal.tolist(),
-                        'intervals': intervals,
-                        'predicted_intervals': concatenated_intervals.tolist(),
-                        'time_stamps': time_stamps.tolist()
-                    })
-                    # return jsonify({
-                    #     'intervals': intervals,
-                    #     'bpm': bpm,
-                    #     'not_reading': False
-                    # })
+                return jsonify({
+                    'intervals': intervals,
+                    'bpm': bpm,
+                    'not_reading': False
+                })
 
         except Exception as e:
             logging.error("Error processing PPG:\n%s", traceback.format_exc())
