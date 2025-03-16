@@ -95,7 +95,7 @@ def ar_predict(intervals, target_time=10.0):
     recent_intervals = list(intervals[-lags:])
 
     while total_time < target_time:
-        next_interval = model_fit.predict(start=len(recent_intervals) - lags, end=len(recent_intervals) - lags)[0]
+        next_interval = model_fit.predict(start=len(recent_intervals) - lags, end=len(recent_intervals) - 1)[0]
         recent_intervals.append(next_interval)  # Append prediction for next step
 
         if total_time + next_interval >= target_time:  # Stop exactly at 10s
@@ -105,8 +105,7 @@ def ar_predict(intervals, target_time=10.0):
         predicted_intervals.append(next_interval)
         total_time += next_interval
 
-    if predicted_intervals:
-        predicted_intervals[0] -= last_interval
+    predicted_intervals[0] -= last_interval
     return np.array(predicted_intervals)
 
 
