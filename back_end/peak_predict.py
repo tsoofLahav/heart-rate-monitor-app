@@ -114,6 +114,8 @@ def ar_predict(intervals, target_time=10.0):
     final_intervals = []
     index = 0
 
+    predicted_intervals = list(predicted_intervals)
+
     while total_time + predicted_intervals[index] < target_time:
         final_intervals.append(predicted_intervals[index])
         total_time += predicted_intervals[index]
