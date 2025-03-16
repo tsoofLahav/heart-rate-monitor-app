@@ -71,9 +71,6 @@ def merge_intervals(intervals1, intervals2):
 def ar_predict(intervals, target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
 
-    if len(intervals) < 7:  # Ensure enough data for training
-        return np.full(10, np.mean(intervals))  # Default to mean interval
-
     last_interval = intervals[-1]
     target_time += last_interval
 
@@ -90,7 +87,7 @@ def ar_predict(intervals, target_time=10.0):
 
     # Predict more steps than needed (e.g., 16 steps)
     num_steps = 16  # Arbitrary large number to exceed target_time
-    predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
+    predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1)
 
     # Trim the prediction to exactly match target_time
     total_time = 0.0
@@ -112,18 +109,18 @@ def ar_predict(intervals, target_time=10.0):
 
 
 def split_intervals_exactly(intervals, target_time=5.0):
-    """Splits intervals into a segment that sums exactly to target_time, even if cutting an interval."""
+    """Splits a list of intervals (totaling 10s) into two parts of exactly 5s each."""
     chunk1, chunk2 = [], []
     sum_time = 0.0
 
     for i, interval in enumerate(intervals):
-        if sum_time + interval < target_time:
+        if sum_time + interval <= target_time:
             chunk1.append(interval)
             sum_time += interval
         else:
             remaining_time = target_time - sum_time
-            chunk1.append(remaining_time)  # Cut interval to fit
-            chunk2.append(interval - remaining_time)  # Move remainder to next part
+            chunk1.append(remaining_time)  # Cut interval to fit exactly 5s
+            chunk2.append(interval - remaining_time)  # Remaining part in chunk2
             chunk2.extend(intervals[i + 1:])  # Add remaining intervals to chunk2
             break  # Stop after reaching 5s
 
