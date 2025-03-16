@@ -52,43 +52,21 @@ def merge_intervals(intervals1, intervals2):
 def ar_predict(intervals, target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
 
-    print("Received intervals:", intervals)
-
-    if len(intervals) < 3:  # Ensure there is enough data after trimming
-        print("Not enough data for AR model. Returning mean interval.")
-        return np.full(10, np.mean(intervals))
-
     last_interval = intervals[-1]
     target_time = target_time + last_interval
 
     # Remove first and last interval from training
     intervals = intervals[1:-1] if len(intervals) > 2 else intervals
 
-    print("Intervals after trimming:", intervals)
-
-    lags = max(2, min(4, len(intervals) - 1))  # Ensure at least 2 lags
-    print("Using lags:", lags)
-
-    if lags < 1:
-        print("Lags too small, returning mean interval.")
-        return np.full(10, np.mean(intervals))
+    lags = min(4, len(intervals) - 1)  # Ensure at least 2 lags
 
     # Train the model
-    try:
-        model = AutoReg(intervals, lags=lags)
-        model_fit = model.fit()
-    except Exception as e:
-        print("Error fitting AutoReg model:", e)
-        return np.full(10, np.mean(intervals))  # Fallback if model fitting fails
+    model = AutoReg(intervals, lags=lags)
+    model_fit = model.fit()
 
     # Predict more steps than needed (e.g., 16 steps)
     num_steps = 16  # Arbitrary large number to exceed target_time
-    try:
-        predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
-        print("Raw predicted intervals:", predicted_intervals)
-    except Exception as e:
-        print("Error during prediction:", e)
-        return np.full(10, np.mean(intervals))  # Fallback if prediction fails
+    predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
 
     # Trim the prediction to exactly match target_time
     total_time = 0.0
@@ -102,13 +80,10 @@ def ar_predict(intervals, target_time=10.0):
     predicted_intervals = np.append(predicted_intervals, target_time - total_time)
     print("Final intervals before adjustment:", predicted_intervals)
 
-    # Ensure final_intervals is not empty before accessing index 0
-    if predicted_intervals:
-        if predicted_intervals[0] - last_interval <= 0:
-            print("First interval too small, removing it.")
-            final_intervals = predicted_intervals[1:] if len(predicted_intervals) > 1 else [target_time]
-        else:
-            predicted_intervals[0] = predicted_intervals[0] - last_interval
+    if predicted_intervals[0] - last_interval <= 0:
+        predicted_intervals = predicted_intervals[1:]
+    else:
+        predicted_intervals[0] = predicted_intervals[0] - last_interval
 
     print("Final intervals after adjustment:", predicted_intervals)
     return np.array(predicted_intervals)
