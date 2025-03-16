@@ -88,25 +88,23 @@ def ar_predict(intervals, target_time=10.0):
     model = AutoReg(intervals, lags=lags)
     model_fit = model.fit()
 
-    predicted_intervals = []
+    # Predict more steps than needed (e.g., 16 steps)
+    num_steps = 16  # Arbitrary large number to exceed target_time
+    predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
+
+    # Trim the prediction to exactly match target_time
     total_time = 0.0
+    final_intervals = []
 
-    # Recursive forecasting: Use past predictions for future ones
-    recent_intervals = list(intervals[-lags:])
-
-    while total_time < target_time:
-        next_interval = model_fit.predict(start=len(recent_intervals) - lags, end=len(recent_intervals) - 1)[0]
-        recent_intervals.append(next_interval)  # Append prediction for next step
-
-        if total_time + next_interval >= target_time:  # Stop exactly at 10s
-            predicted_intervals.append(target_time - total_time)  # Trim last interval
+    for interval in predicted_intervals:
+        if total_time + interval >= target_time:
+            final_intervals.append(target_time - total_time)  # Trim last interval
             break
+        final_intervals.append(interval)
+        total_time += interval
 
-        predicted_intervals.append(next_interval)
-        total_time += next_interval
-
-    predicted_intervals[0] -= last_interval
-    return np.array(predicted_intervals)
+    final_intervals[0] -= last_interval
+    return np.array(final_intervals)
 
 
 def split_intervals_exactly(intervals, target_time=5.0):
