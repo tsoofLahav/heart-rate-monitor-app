@@ -103,7 +103,11 @@ def ar_predict(intervals, target_time=10.0):
         final_intervals.append(interval)
         total_time += interval
 
-    final_intervals[0] -= last_interval
+    if final_intervals[0] - last_interval <= 0:
+        final_intervals = final_intervals[1:]
+    else:
+        final_intervals[0] = final_intervals[0] - last_interval
+
     return np.array(final_intervals)
 
 
