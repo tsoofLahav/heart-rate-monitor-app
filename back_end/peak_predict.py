@@ -113,27 +113,25 @@ def ar_predict(intervals, target_time=10.0):
     total_time = 0.0
     index = 0
 
-    predicted_intervals = predicted_intervals.tolist()
-
     while total_time < target_time:
         total_time += predicted_intervals[index]
         index += 1
 
-    final_intervals = predicted_intervals[:index]
+    predicted_intervals = predicted_intervals[:index]
 
-    final_intervals[-1] = target_time - total_time
-    print("Final intervals before adjustment:", final_intervals)
+    predicted_intervals[-1] = target_time - total_time
+    print("Final intervals before adjustment:", predicted_intervals)
 
     # Ensure final_intervals is not empty before accessing index 0
-    if final_intervals:
-        if final_intervals[0] - last_interval <= 0:
+    if predicted_intervals:
+        if predicted_intervals[0] - last_interval <= 0:
             print("First interval too small, removing it.")
-            final_intervals = final_intervals[1:] if len(final_intervals) > 1 else [target_time]
+            final_intervals = predicted_intervals[1:] if len(predicted_intervals) > 1 else [target_time]
         else:
-            final_intervals[0] = final_intervals[0] - last_interval
+            predicted_intervals[0] = predicted_intervals[0] - last_interval
 
-    print("Final intervals after adjustment:", final_intervals)
-    return np.array(final_intervals)
+    print("Final intervals after adjustment:", predicted_intervals)
+    return np.array(predicted_intervals)
 
 
 def split_intervals_exactly(intervals, target_time=5.0):
