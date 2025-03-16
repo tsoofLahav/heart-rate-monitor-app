@@ -85,7 +85,7 @@ def ar_predict(intervals, target_time=10.0):
 
     print("Intervals after trimming:", intervals)
 
-    lags = max(2, min(7, len(intervals) - 1))  # Ensure at least 2 lags
+    lags = max(2, min(4, len(intervals) - 1))  # Ensure at least 2 lags
     print("Using lags:", lags)
 
     if lags < 1:
