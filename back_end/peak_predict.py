@@ -3,13 +3,9 @@ from scipy.signal import find_peaks
 from statsmodels.tsa.ar_model import AutoReg
 
 # Global storage for learning from previous data
-# previous_intervals = []
-previous_end_had_peak = False  # Global flag to handle repeated peaks
 
 
 def detect_peaks(signal, fps):
-    """Detect peaks in the signal while handling edge cases for start and end."""
-    global previous_end_had_peak
 
     min_distance = int(fps * 0.33)  # Ensure peaks are spaced by at least 0.25s
     prominence = 0.1  # Peak must stand out
@@ -17,21 +13,6 @@ def detect_peaks(signal, fps):
 
     # Detect peaks normally
     peaks, properties = find_peaks(signal, height=min_height, distance=min_distance, prominence=prominence)
-
-    # **Check if a peak exists in the last 3 frames**
-    if peaks[-1] >= len(signal)-3:  # If a significant peak exists
-        previous_end_had_peak = True
-    else:
-        previous_end_had_peak = False
-
-    # **Handle the beginning of the signal**
-    if len(signal) >= 10 and not previous_end_had_peak:
-        start_window = signal[:3]  # First 3 frames
-        max_idx = np.argmax(start_window)  # Index of max value in first 3 frames
-
-        # If the max is above threshold and no peak is too close (10 frames)
-        if start_window[max_idx] > min_height and (len(peaks) == 0 or peaks[0] > 10):
-            peaks = np.insert(peaks, 0, max_idx)  # Add peak at the start
 
     return peaks
 
@@ -51,7 +32,7 @@ def compute_intervals(peaks, segment_length, fps):
     intervals.insert(0, first_interval)
 
     # Last interval correction (from last peak to the end)
-    last_interval = (segment_length - peaks[-1]) / fps  # From last peak to segment end
+    last_interval = (segment_length - (peaks[-1] / fps))   # From last peak to segment end
     intervals.append(last_interval)
 
     return intervals
