@@ -78,7 +78,7 @@ def ar_predict(intervals, target_time=10.0):
         return np.full(10, np.mean(intervals))
 
     last_interval = intervals[-1]
-    target_time += last_interval
+    target_time = target_time + last_interval
 
     # Remove first and last interval from training
     intervals = intervals[1:-1] if len(intervals) > 2 else intervals
@@ -114,7 +114,7 @@ def ar_predict(intervals, target_time=10.0):
     final_intervals = []
     index = 0
 
-    predicted_intervals = list(predicted_intervals)
+    predicted_intervals = predicted_intervals.tolist()
 
     while total_time + predicted_intervals[index] < target_time:
         final_intervals.append(predicted_intervals[index])
