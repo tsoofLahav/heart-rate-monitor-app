@@ -3,6 +3,7 @@ from scipy.signal import find_peaks
 from statsmodels.tsa.ar_model import AutoReg
 
 # Global storage for learning from previous data
+past_intervals = []
 
 
 def detect_peaks(signal, fps):
@@ -50,10 +51,14 @@ def merge_intervals(intervals1, intervals2):
 
 
 def ar_predict(intervals, target_time=10.0):
+    global past_intervals
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
 
     last_interval = intervals[-1]
     target_time = target_time + last_interval
+
+    intervals = merge_intervals(past_intervals, intervals)
+    past_intervals = intervals
 
     # Remove first and last interval from training
     intervals = intervals[1:-1] if len(intervals) > 2 else intervals
@@ -78,14 +83,12 @@ def ar_predict(intervals, target_time=10.0):
 
     predicted_intervals = predicted_intervals[:index]
     predicted_intervals = np.append(predicted_intervals, target_time - total_time)
-    print("Final intervals before adjustment:", predicted_intervals)
 
     if predicted_intervals[0] - last_interval <= 0:
         predicted_intervals = predicted_intervals[1:]
     else:
         predicted_intervals[0] = predicted_intervals[0] - last_interval
 
-    print("Final intervals after adjustment:", predicted_intervals)
     return np.array(predicted_intervals)
 
 
@@ -109,6 +112,7 @@ def split_intervals_exactly(intervals, target_time=5.0):
 
 
 def process_peaks(filtered_signal, fps):
+    global past_intervals
     """Process 15s filtered signal, detect peaks, predict next intervals, and return x4."""
 
     # Convert to time
