@@ -111,17 +111,17 @@ def ar_predict(intervals, target_time=10.0):
 
     # Trim the prediction to exactly match target_time
     total_time = 0.0
-    final_intervals = []
     index = 0
 
     predicted_intervals = predicted_intervals.tolist()
 
-    while total_time + predicted_intervals[index] < target_time:
-        final_intervals.append(predicted_intervals[index])
+    while total_time < target_time:
         total_time += predicted_intervals[index]
         index += 1
 
-    final_intervals.append(target_time - total_time)
+    final_intervals = predicted_intervals[:index]
+
+    final_intervals[-1] = target_time - total_time
     print("Final intervals before adjustment:", final_intervals)
 
     # Ensure final_intervals is not empty before accessing index 0
