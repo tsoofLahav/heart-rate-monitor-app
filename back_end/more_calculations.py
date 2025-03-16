@@ -15,9 +15,9 @@ def compute_bpm_hrv(intervals):
     bpm = 60 / avg_interval if avg_interval > 0 else 0
 
     # Compute HRV (Standard deviation of NN intervals)
-    # hrv = np.std(valid_intervals)
+    hrv = np.std(valid_intervals)
 
     # Store in DB
-    # store_measurement_internal(current_session_id, bpm, hrv)
+    store_measurement_internal(current_session_id, bpm, hrv)
 
     return bpm
