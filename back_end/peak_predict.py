@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import find_peaks
 from statsmodels.tsa.ar_model import AutoReg
+import math
 
 # Global storage for learning from previous data
 past_intervals = []
@@ -60,10 +61,12 @@ def ar_predict(intervals, target_time=10.0):
     intervals = merge_intervals(past_intervals, intervals)
     past_intervals = intervals
 
+    n = int(math.sqrt(len(past_intervals)))
+
     # Remove first and last interval from training
     intervals = intervals[1:-1] if len(intervals) > 2 else intervals
 
-    lags = min(4, len(intervals) - 1)  # Ensure at least 2 lags
+    lags = min(n, len(intervals) - 1)  # Ensure at least 2 lags
 
     # Train the model
     model = AutoReg(intervals, lags=lags)
