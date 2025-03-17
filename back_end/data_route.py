@@ -5,7 +5,7 @@ import threading
 
 data_bp = Blueprint("data", __name__)
 session_id_lock = threading.Lock()
-current_session_id = None
+current_session_id = 1
 
 # Database connection string
 os.environ["DB_CONNECTION_STRING"] = (
