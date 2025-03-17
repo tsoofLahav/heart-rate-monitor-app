@@ -9,9 +9,9 @@ current_session_id = None
 
 # Database connection string
 os.environ["DB_CONNECTION_STRING"] = (
-    "Driver={ODBC Driver 18 for SQL Server};Server=tcp:heart-monitor-server.database.windows.net,"
-    "1433;Database=heart-monitor-db;Uid=heart-monitor-server-admin;Pwd=#ass101223;Encrypt=yes"
-    ";TrustServerCertificate=no;Connection Timeout=30;")
+    "Driver={ODBC Driver 18 for SQL Server};Server=tcp:heart-monitor-server.privatelink.database.windows.net,"
+    "1433;Database=heart-monitor-db;Uid=heart-monitor-server-admin;Pwd=#ass101223;Encrypt=yes;TrustServerCertificate"
+    "=no;Connection Timeout=30;")
 
 
 def get_db_connection():
