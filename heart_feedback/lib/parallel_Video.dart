@@ -61,8 +61,8 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     );
 
     await _cameraController!.initialize();
-    await _cameraController!.setExposureMode(ExposureMode.locked);
-    await _cameraController!.setFocusMode(FocusMode.locked);
+    await _cameraController!.setExposureMode(ExposureMode.auto);
+    await _cameraController!.setFocusMode(FocusMode.auto);
     await _cameraController!.lockCaptureOrientation();
 
     setState(() {});

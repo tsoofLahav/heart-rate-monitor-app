@@ -8,6 +8,7 @@ from more_calculations import compute_bpm_hrv
 import ast
 import logging
 import traceback
+import subprocess
 
 logging.basicConfig(level=logging.DEBUG)
 concatenated_intensities = []
@@ -32,15 +33,24 @@ def setup_video_route(app):
                 return jsonify({'error': 'No video file received.'}), 400
 
             # Save video file
-            video_path = './temp_video.mp4'
-            file.save(video_path)
+            original_video_path = './temp_video.mp4'
+            file.save(original_video_path)
 
             # Check if the file exists and has a valid size
-            if not os.path.exists(video_path) or os.path.getsize(video_path) == 0:
+            if not os.path.exists(original_video_path) or os.path.getsize(original_video_path) == 0:
                 raise Exception("Invalid video file.")
 
-            # Open video with OpenCV
-            cap = cv2.VideoCapture(video_path)
+            # Convert video to constant 24 FPS using FFmpeg
+            fixed_fps_video_path = './fixed_fps_video.mp4'
+            ffmpeg_cmd = [
+                "ffmpeg", "-y", "-i", original_video_path,
+                "-vf", "fps=24", "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k", fixed_fps_video_path
+            ]
+            subprocess.run(ffmpeg_cmd, check=True)
+
+            # Open fixed video with OpenCV
+            cap = cv2.VideoCapture(fixed_fps_video_path)
             if not cap.isOpened():
                 raise Exception("Failed to open video file with OpenCV.")
 
