@@ -67,8 +67,7 @@ def setup_video_route(app):
 # ############ part 6: send to front ###################
                 return jsonify({
                     'intervals': intervals,
-                    'bpm': bpm,
-                    'not_reading': False
+                    'bpm': bpm
                 })
 
         except Exception as e:
