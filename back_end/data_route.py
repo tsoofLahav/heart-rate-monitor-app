@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 import pyodbc
 import os
 import threading
-from video_route import start_over
+import globals
 
 data_bp = Blueprint("data", __name__)
 session_id_lock = threading.Lock()
@@ -13,6 +13,12 @@ os.environ["DB_CONNECTION_STRING"] = (
     "Driver={ODBC Driver 18 for SQL Server};Server=tcp:heart-monitor-server.privatelink.database.windows.net,"
     "1433;Database=heart-monitor-db;Uid=heart-monitor-server-admin;Pwd=#ass101223;Encrypt=yes;TrustServerCertificate"
     "=yes;Connection Timeout=30;")
+
+
+def start_over():
+    globals.concatenated_intensities = []
+    globals.round_count = 0
+    globals.past_intervals = []
 
 
 def get_db_connection():

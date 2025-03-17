@@ -2,9 +2,7 @@ import numpy as np
 from scipy.signal import find_peaks
 from statsmodels.tsa.ar_model import AutoReg
 import math
-
-# Global storage for learning from previous data
-past_intervals = []
+import globals
 
 
 def detect_peaks(signal, fps):
@@ -52,22 +50,21 @@ def merge_intervals(intervals1, intervals2):
 
 
 def ar_predict(intervals, target_time=10.0):
-    global past_intervals
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
 
     last_interval = intervals[-1]
     target_time = target_time + last_interval
 
-    intervals = merge_intervals(past_intervals, intervals)
+    intervals = merge_intervals(globals.past_intervals, intervals)
     if len(intervals) > 60:
-        past_intervals = intervals[-60:]
+        globals.past_intervals = intervals[-60:]
     else:
-        past_intervals = intervals
+        globals.past_intervals = intervals
 
-    n = int(math.sqrt(len(past_intervals)))
+    n = int(math.sqrt(len(globals.past_intervals)))
 
     # Remove first and last interval from training
-    intervals = intervals[1:-1] if len(intervals) > 2 else intervals
+    intervals = globals.past_intervals[1:-1]
 
     lags = min(n, len(intervals) - 1)  # Ensure at least 2 lags
 

@@ -9,23 +9,14 @@ import ast
 import logging
 import traceback
 import subprocess
+import globals
 
 logging.basicConfig(level=logging.DEBUG)
-concatenated_intensities = []
-concatenated_intervals = []
-round_count = 0
-
-
-def start_over():
-    global concatenated_intensities, round_count
-    concatenated_intensities = []
-    round_count = 0
 
 
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
-        global concatenated_intensities, round_count, concatenated_intervals
         try:
             # Receive video file from request
             file = request.files.get('video')
@@ -94,23 +85,23 @@ def setup_video_route(app):
             # ############ part 2: concatenating ###################
             segment_length = int(5 * fps)  # Define the length of one 5s part
 
-            round_count += 1
-            if round_count < 3:
+            globals.round_count += 1
+            if globals.round_count < 3:
                 # First 3 rounds: Append the new intensities to build up the initial sequence
-                concatenated_intensities.extend(intensities)
+                globals.concatenated_intensities.extend(intensities)
                 return jsonify({'loading': True})
             else:
                 # From 4th round onward: Remove first part, append new part (Keep only last 3 segments)
-                if round_count is 3:
-                    concatenated_intensities.extend(intensities)
+                if globals.round_count is 3:
+                    globals.concatenated_intensities.extend(intensities)
                 else:
-                    concatenated_intensities = concatenated_intensities[segment_length:] + intensities
+                    globals.concatenated_intensities = globals.concatenated_intensities[segment_length:] + intensities
 
                 # ############ part 3: filtering ###################
                 with open("reference.txt", "r") as file:
                     reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
-                clean_signal, filtered_signal, not_reading = denoise_ppg(concatenated_intensities, fps,
+                clean_signal, filtered_signal, not_reading = denoise_ppg(globals.concatenated_intensities, fps,
                                                                          reference_signal)
 
                 # handle not reading
