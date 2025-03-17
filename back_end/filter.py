@@ -48,7 +48,7 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.0, gamma=1.5,
-               min_trust=0.1, max_trust=0.9, max_artifact_streak=6, trust_threshold=0.2):
+               min_trust=0.1, max_trust=0.9, max_artifact_streak=6, trust_threshold=0.1):
     """Adaptive LMS filter with artifact detection and strong correction when needed."""
 
     global not_reading
