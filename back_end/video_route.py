@@ -15,6 +15,12 @@ concatenated_intervals = []
 round_count = 0
 
 
+def start_over():
+    global concatenated_intensities, round_count
+    concatenated_intensities = []
+    round_count = 0
+
+
 def setup_video_route(app):
     @app.route('/process_video', methods=['POST'])
     def process_video():
@@ -94,7 +100,8 @@ def setup_video_route(app):
                 with open("reference.txt", "r") as file:
                     reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
-                clean_signal, filtered_signal, not_reading = denoise_ppg(concatenated_intensities, fps, reference_signal)
+                clean_signal, filtered_signal, not_reading = denoise_ppg(concatenated_intensities, fps,
+                                                                         reference_signal)
 
                 # handle not reading
                 if not_reading:

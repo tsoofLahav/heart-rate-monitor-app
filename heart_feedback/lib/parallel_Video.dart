@@ -57,9 +57,13 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
       backCamera,
       ResolutionPreset.medium,
       enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.yuv420,
     );
 
     await _cameraController!.initialize();
+    await _cameraController!.setExposureMode(ExposureMode.locked);
+    await _cameraController!.setFocusMode(FocusMode.locked);
+    await _cameraController!.lockCaptureOrientation();
 
     setState(() {});
   }

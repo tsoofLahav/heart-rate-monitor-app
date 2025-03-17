@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import pyodbc
 import os
 import threading
+from video_route import start_over
 
 data_bp = Blueprint("data", __name__)
 session_id_lock = threading.Lock()
@@ -31,6 +32,7 @@ def start_session():
     session_id = cursor.fetchone()[0]
     conn.commit()
     conn.close()
+    start_over()
 
     # Store the session ID in a global variable
     with session_id_lock:
