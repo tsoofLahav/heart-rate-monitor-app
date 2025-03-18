@@ -66,7 +66,7 @@ def setup_video_route(app):
                 bpm = compute_bpm_hrv(intervals)
 # ############ part 6: send to front ###################
                 return jsonify({
-                    'intervals': predicted_intervals,
+                    'intervals': predicted_intervals.tolist(),
                     'bpm': bpm
                 })
 

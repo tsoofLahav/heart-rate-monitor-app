@@ -292,17 +292,15 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     for (int i = 1; i < _timeIntervals.length - 1; i++) {
       setState(() {
-        _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)]; // Random color
+        _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)]; // Random color change
       });
-      _animationController.forward();
       await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
     }
 
-    // ✅ Trigger before the last interval but don't count its time
+    // ✅ Final color update before last interval
     setState(() {
       _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)];
     });
-    _animationController.forward();
   }
 
 

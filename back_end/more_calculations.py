@@ -16,7 +16,7 @@ def compute_bpm_hrv(intervals):
 
     # Compute HRV (Standard deviation of NN intervals)
     hrv = np.std(valid_intervals)
-
+    print(f"Storing measurement for session: {current_session_id}, BPM: {bpm}, HRV: {hrv}")
     # Store in DB
     store_measurement_internal(current_session_id, bpm, hrv)
 

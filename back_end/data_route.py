@@ -49,12 +49,17 @@ def start_session():
 
 # 2. Store BPM & HRV measurement (can be called from inside Flask)
 def store_measurement_internal(session_id, bpm, hrv):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO measurements (session_id, timestamp, bpm, hrv) VALUES (?, GETDATE(), ?, ?)", session_id,
-                   bpm, hrv)
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO measurements (session_id, timestamp, bpm, hrv) VALUES (?, GETDATE(), ?, ?)",
+            session_id, bpm, hrv
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"DB Insert Error: {e}")
 
 
 # API endpoint (optional if you want external calls)
