@@ -21,6 +21,11 @@ def start_over():
     globals.past_intervals = []
 
 
+def get_current_session_id():
+    with session_id_lock:
+        return current_session_id
+
+
 def get_db_connection():
     db_conn_str = os.getenv("DB_CONNECTION_STRING")
     if not db_conn_str:

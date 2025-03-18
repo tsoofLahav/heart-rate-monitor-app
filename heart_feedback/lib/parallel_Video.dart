@@ -148,24 +148,36 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   
   // ✅ HANDLE RECEIVING RESPONSE
   Future<void> _receiveResponse() async {
+    print("Waiting for previous backend response...");
+
     if (_previousResponse != null) {
       try {
-
         final data = await _previousResponse!;
+        print("Received response: $data");
+
         if (mounted) {
           if (data.isNotEmpty) {
-            _handleBackendResponse(data);
+            if (_isPlaying) {
+              print("Skipping response processing because _isPlaying is true.");
+            } else {
+              print("Processing backend response...");
+              _handleBackendResponse(data);
+            }
           } else {
+            print("Received empty response.");
           }
         }
-
       } catch (e) {
         print("Error receiving backend response: $e");
       } finally {
-        _previousResponse = null;  // Clear response after processing
+        print("Clearing previous response.");
+        _previousResponse = null; // Clear response after processing
       }
+    } else {
+      print("No previous response to process.");
     }
   }
+
 
   void _sendVideoToBackend(String filePath) {
     var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
@@ -375,21 +387,13 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
           ),
           SizedBox(height: 20),
           if (widget.mode == "visual")
-            AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _animationController.value,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color.fromARGB(255, 183, 183, 183), // Customize color if needed
-                    ),
-                  ),
-                );
-              },
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _circleColor, // Change color instead of animation
+              ),
             ),
           SizedBox(height: 20),
           Text(

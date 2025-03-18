@@ -1,5 +1,5 @@
 import numpy as np
-from data_route import store_measurement_internal, current_session_id  # Importing the function from the DB module
+from data_route import store_measurement_internal, get_current_session_id
 
 
 def compute_bpm_hrv(intervals):
@@ -16,8 +16,8 @@ def compute_bpm_hrv(intervals):
 
     # Compute HRV (Standard deviation of NN intervals)
     hrv = np.std(valid_intervals)
-    print(f"Storing measurement for session: {current_session_id}, BPM: {bpm}, HRV: {hrv}")
+    session_id = get_current_session_id()
     # Store in DB
-    store_measurement_internal(current_session_id, bpm, hrv)
+    store_measurement_internal(session_id, bpm, hrv)
 
     return bpm
