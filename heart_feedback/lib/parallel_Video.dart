@@ -23,6 +23,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   List<double> _timeIntervals = [];
   int _bpm = 0;
   bool _unstableReading = false;
+  bool _isPlaying = false;
   bool _loading = false;
   bool _serverError = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -121,9 +122,6 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
         try {
           final file = await _cameraController!.stopVideoRecording();
           final filePath = file.path;
-          final stopTime = DateTime.now();
-
-          print("Stopped recording at: $stopTime");
 
           // ✅ 1. Process previous response first (WAIT before restarting)
           await _receiveResponse();
@@ -134,8 +132,6 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
           // ✅ 3. Restart recording AFTER response is processed
           if (_isRecording) {
             await _cameraController!.startVideoRecording();
-            await Future.delayed(Duration(milliseconds: 20));
-            print("Restarted recording at: ${DateTime.now()}");
           }
         } catch (e) {
           print("Error stopping or starting video recording: $e");
@@ -154,22 +150,14 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   Future<void> _receiveResponse() async {
     if (_previousResponse != null) {
       try {
-        DateTime startProcessing = DateTime.now();
-        print("Backend response received at: $startProcessing");
 
         final data = await _previousResponse!;
         if (mounted) {
           if (data.isNotEmpty) {
-            print("Backend response content: $data");
             _handleBackendResponse(data);
           } else {
-            print("⚠️ Backend response is empty! ⚠️");
           }
         }
-
-        DateTime endProcessing = DateTime.now();
-        print("Backend response fully processed at: $endProcessing");
-        print("Processing duration: ${endProcessing.difference(startProcessing).inMilliseconds} ms");
 
       } catch (e) {
         print("Error receiving backend response: $e");
@@ -187,15 +175,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     http.MultipartFile.fromPath('video', filePath).then((file) {
       request.files.add(file);
 
-      // Log time when sending starts
-      DateTime startUpload = DateTime.now();
-      print("Sending video started at: $startUpload");
-
       _previousResponse = request.send().then<Map<String, dynamic>>((response) async {
-        // Log time when response is received
-        DateTime endUpload = DateTime.now();
-        print("Video uploaded at: $endUpload");
-        print("Upload duration: ${endUpload.difference(startUpload).inMilliseconds} ms");
 
         if (response.statusCode == 200) {
           var jsonResponse = await response.stream.bytesToString();
@@ -222,7 +202,6 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     if (data.containsKey("server_error")) {
       setState(() => _serverError = true);
-      print("Server error: ${data['server_error']}");
       return;
     }
 
@@ -262,8 +241,10 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   // PLAY SOUND BASED ON INTERVAL TIMING
   //////////////////////////////////////////////////////////////////////////////
 
+
   Future<void> _playSoundsWithIntervals() async {
-    if (_timeIntervals.length < 2) return; // Need at least 2 intervals
+    if (_isPlaying || _timeIntervals.length < 2) return; // Prevent overlap
+    _isPlaying = true;
 
     await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt())); // Wait first interval
 
@@ -274,6 +255,8 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     // ✅ Trigger before the last interval but don't count its time
     await _playSound();
+
+    _isPlaying = false; // Reset flag after completion
   }
 
   Future<void> _playSound() async {
