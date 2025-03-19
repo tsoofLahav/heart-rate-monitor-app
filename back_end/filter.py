@@ -50,7 +50,7 @@ def align_reference(noisy_signal, reference_signal, num_taps):
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
                beta=1.5, gamma=2,  # Less aggressive for flagging artifacts
                min_trust=0.1, max_trust=0.9,
-               max_artifact_streak=5, trust_threshold_correction=0.9, trust_threshold_flagging=0.3):
+               max_artifact_streak=5, trust_threshold_correction=0.9, trust_threshold_flagging=0.1):
     """Adaptive LMS filter with strong correction but less aggressive artifact streak detection."""
 
     global not_reading
