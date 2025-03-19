@@ -47,11 +47,11 @@ def align_reference(noisy_signal, reference_signal, num_taps):
     return aligned_reference  # Final aligned reference, same length as noisy signal
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30,
+def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
                beta_correction=1.5, gamma_correction=2.0,  # More aggressive for correction
                beta_flagging=0.8, gamma_flagging=1.2,  # Less aggressive for flagging artifacts
                min_trust=0.1, max_trust=0.9,
-               max_artifact_streak=5, trust_threshold_correction=0.3, trust_threshold_flagging=0.15):
+               max_artifact_streak=5, trust_threshold_correction=0.4, trust_threshold_flagging=0.15):
     """Adaptive LMS filter with strong correction but less aggressive artifact streak detection."""
 
     global not_reading

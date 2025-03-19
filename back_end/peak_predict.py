@@ -7,7 +7,7 @@ import globals
 
 def detect_peaks(signal, fps):
 
-    min_distance = int(fps * 0.33)  # Ensure peaks are spaced by at least 0.25s
+    min_distance = int(fps * 0.4)  # Ensure peaks are spaced by at least 0.25s
     prominence = 0.1  # Peak must stand out
     min_height = 0.75  # Minimum height threshold
 
