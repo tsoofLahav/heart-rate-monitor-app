@@ -7,7 +7,6 @@ import globals
 
 not_reading = False
 logging.basicConfig(level=logging.DEBUG)
-# w = None
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
