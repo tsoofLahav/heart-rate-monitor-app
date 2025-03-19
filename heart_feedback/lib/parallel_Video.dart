@@ -23,14 +23,21 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   List<double> _timeIntervals = [];
   int _bpm = 0;
   bool _unstableReading = false;
-  bool _isPlaying = false;
   bool _loading = false;
   bool _serverError = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
   late AnimationController _animationController;
   Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
-  Color _circleColor = Colors.blue; // Default color
+  Color _circleColor = const Color.fromARGB(255, 33, 240, 243); // Default color
   int _sessionId = 0; // Store session ID
+  List<Color> colorPalette = [
+    const Color.fromARGB(255, 19, 196, 178),
+    Colors.lightBlue,
+    Colors.greenAccent, // Calming green
+    const Color.fromARGB(255, 239, 108, 152),  // Magenta-pink
+    const Color.fromARGB(255, 239, 239, 143), // Pale yellow
+    Colors.white
+  ];
 
 
   @override
@@ -84,7 +91,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     }
 
     _isRecording = true;
-    _loopRecording();
+    _startLoop();
     setState(() {});
   }
 
@@ -108,38 +115,45 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   // RECORDING VIDEO IN A LOOP & SENDING TO BACKEND
   //////////////////////////////////////////////////////////////////////////////
 
-  Future<void> _loopRecording() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-
+  Future<void> _startLoop() async {
     _isRecording = true;
-    await _cameraController!.setFlashMode(FlashMode.torch);
-    await _cameraController!.startVideoRecording();
 
     while (_isRecording) {
-      await Future.delayed(Duration(seconds: 5));
+      try {
+        // ✅ Step 1: Record for 5 seconds
+        String filePath = await _recordVideo();
 
-      if (_isRecording) {
-        try {
-          final file = await _cameraController!.stopVideoRecording();
-          final filePath = file.path;
+        // ✅ Step 2: Process previous response (organized break)
+        await _receiveResponse();
 
-          // ✅ 1. Process previous response first (WAIT before restarting)
-          await _receiveResponse();
+        // ✅ Step 3: Send new video to backend (fire & forget)
+        _sendVideoToBackend(filePath);
 
-          // ✅ 2. Send the new video to the backend
-          _sendVideoToBackend(filePath);
+        // ✅ Step 4: Start playback in sync with new recording
+        _playFeedback();
 
-          // ✅ 3. Restart recording AFTER response is processed
-          if (_isRecording) {
-            await _cameraController!.startVideoRecording();
-          }
-        } catch (e) {
-          print("Error stopping or starting video recording: $e");
-        }
+      } catch (e) {
+        print("Error in loop: $e");
       }
     }
   }
 
+  Future<String> _recordVideo() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      throw Exception("Camera is not initialized");
+    }
+
+    try {
+      await _cameraController!.setFlashMode(FlashMode.torch);
+      await _cameraController!.startVideoRecording();
+      await Future.delayed(Duration(seconds: 5)); // Wait 5 seconds
+      final XFile file = await _cameraController!.stopVideoRecording();
+      return file.path; // Return correct file path
+    } catch (e) {
+      print("❌ Error recording video: $e");
+      rethrow;
+    }
+  }
 
 
   //////////////////////////////////////////////////////////////////////////////
@@ -148,33 +162,17 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   
   // ✅ HANDLE RECEIVING RESPONSE
   Future<void> _receiveResponse() async {
-    print("Waiting for previous backend response...");
-
     if (_previousResponse != null) {
       try {
         final data = await _previousResponse!;
-        print("Received response: $data");
-
-        if (mounted) {
-          if (data.isNotEmpty) {
-            if (_isPlaying) {
-              print("Skipping response processing because _isPlaying is true.");
-            } else {
-              print("Processing backend response...");
-              _handleBackendResponse(data);
-            }
-          } else {
-            print("Received empty response.");
-          }
+        if (data.isNotEmpty) {
+          _handleBackendResponse(data);
         }
       } catch (e) {
         print("Error receiving backend response: $e");
       } finally {
-        print("Clearing previous response.");
-        _previousResponse = null; // Clear response after processing
+        _previousResponse = null; // Clear processed response
       }
-    } else {
-      print("No previous response to process.");
     }
   }
 
@@ -183,15 +181,13 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
 
     var request = http.MultipartRequest('POST', uri);
-
     http.MultipartFile.fromPath('video', filePath).then((file) {
       request.files.add(file);
 
       _previousResponse = request.send().then<Map<String, dynamic>>((response) async {
-
         if (response.statusCode == 200) {
           var jsonResponse = await response.stream.bytesToString();
-          return jsonResponse.isNotEmpty ? json.decode(jsonResponse) as Map<String, dynamic> : {};
+          return jsonResponse.isNotEmpty ? json.decode(jsonResponse) : {};
         }
         return {};
       }).catchError((e) {
@@ -229,22 +225,24 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     if (data.containsKey("bpm") && data.containsKey("intervals")) {
       setState(() {
-        _bpm = data["bpm"].toInt(); // Convert to int
+        _bpm = data["bpm"].toInt();
         _timeIntervals = List<double>.from(data["intervals"]);
       });
+    }
+  }
 
-      if (_timeIntervals.isNotEmpty) {
-        switch (widget.mode) {
-          case "audio":
-            _playSoundsWithIntervals(); // Run in parallel
-            break;
-          case "haptic":
-            _triggerHapticFeedback();
-            break;
-          case "visual":
-            _playVisualFeedback();
-            break;
-        }
+  void _playFeedback() {
+    if (_timeIntervals.isNotEmpty) {
+      switch (widget.mode) {
+        case "audio":
+          _playSoundsWithIntervals();
+          break;
+        case "haptic":
+          _triggerHapticFeedback();
+          break;
+        case "visual":
+          _playVisualFeedback();
+          break;
       }
     }
   }
@@ -255,8 +253,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
 
   Future<void> _playSoundsWithIntervals() async {
-    if (_isPlaying || _timeIntervals.length < 2) return; // Prevent overlap
-    _isPlaying = true;
+    if (_timeIntervals.length < 2) return; // Prevent overlap
 
     await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt())); // Wait first interval
 
@@ -268,7 +265,6 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
     // ✅ Trigger before the last interval but don't count its time
     await _playSound();
 
-    _isPlaying = false; // Reset flag after completion
   }
 
   Future<void> _playSound() async {
@@ -304,16 +300,23 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     for (int i = 1; i < _timeIntervals.length - 1; i++) {
       setState(() {
-        _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)]; // Random color change
+        _circleColor = colorPalette[Random().nextInt(colorPalette.length)];
+        _animationController.forward(from: 0).then((_) {
+          _animationController.reverse();
+        });
       });
+
       await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
     }
 
     // ✅ Final color update before last interval
     setState(() {
-      _circleColor = Colors.primaries[Random().nextInt(Colors.primaries.length)];
+      _circleColor = colorPalette[Random().nextInt(colorPalette.length)];
     });
+
+    _animationController.forward(from: 0); // Final bounce
   }
+
 
 
   //////////////////////////////////////////////////////////////////////////////
@@ -376,6 +379,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          SizedBox(height: 40), // Moved preview slightly higher
           ClipOval(
             child: SizedBox(
               width: 150, // Adjust size for small round preview
@@ -385,15 +389,23 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
                   : CircularProgressIndicator(),
             ),
           ),
-          SizedBox(height: 20),
+          SizedBox(height: 80), // More space for bouncing effect
           if (widget.mode == "visual")
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _circleColor, // Change color instead of animation
-              ),
+            AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: 1.0 + (_animationController.value * 0.2), // Expands & shrinks
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _circleColor, // Updated color
+                    ),
+                  ),
+                );
+              },
             ),
           SizedBox(height: 20),
           Text(

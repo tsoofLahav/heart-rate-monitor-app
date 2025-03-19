@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class SessionListPage extends StatefulWidget {
   @override
@@ -18,11 +19,18 @@ class _SessionListPageState extends State<SessionListPage> {
   }
 
   Future<void> fetchSessions() async {
-    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/get_sessions'));
+    final response = await http.get(Uri.parse(
+        'https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/get_sessions'));
+
     if (response.statusCode == 200) {
+      List fetchedSessions = json.decode(response.body);
+      print("✅ Fetched sessions: $fetchedSessions");
+
       setState(() {
-        sessions = json.decode(response.body);
+        sessions = fetchedSessions;
       });
+    } else {
+      print("❌ Failed to fetch sessions: ${response.statusCode}");
     }
   }
 
@@ -44,14 +52,18 @@ class _SessionListPageState extends State<SessionListPage> {
               style: TextStyle(color: Colors.white),
             ),
             subtitle: Text(
-              "Guessed BPM: ${session['guessed_bpm']} | Real BPM: ${session['real_bpm']}",
+              "Guessed BPM: ${session['guessed_bpm'] ?? 'N/A'} | Real BPM: ${session['real_bpm'] != null ? session['real_bpm'].toInt() : 'N/A'}",
               style: TextStyle(color: Colors.grey),
             ),
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SessionDetailsPage(sessionId: session['session_id']),
+                  builder: (context) => SessionDetailsPage(
+                    sessionId: session['session_id'],
+                    guessedBpm: session['guessed_bpm'] ?? 0,
+                    realBpm: session['real_bpm'] ?? 0,
+                  ),
                 ),
               );
             },
@@ -64,9 +76,15 @@ class _SessionListPageState extends State<SessionListPage> {
 
 class SessionDetailsPage extends StatefulWidget {
   final int sessionId;
-  
-  SessionDetailsPage({required this.sessionId});
-  
+  final double guessedBpm;
+  final double realBpm;
+
+  SessionDetailsPage({
+    required this.sessionId,
+    required this.guessedBpm,
+    required this.realBpm,
+  });
+
   @override
   _SessionDetailsPageState createState() => _SessionDetailsPageState();
 }
@@ -82,28 +100,112 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
   }
 
   Future<void> fetchSessionDetails() async {
-    final response = await http.get(Uri.parse('https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/get_session_details?session_id=${widget.sessionId}'));
-    
+    final response = await http.get(Uri.parse(
+        'https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/data/get_session_details?session_id=${widget.sessionId}'));
+
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
+      print("✅ Fetched session details: $data");
 
-      setState(() {
-        bpmData = data.map<FlSpot>((e) => FlSpot(
-          parseTimestamp(e['timestamp']),  // Ensure timestamp is a double
-          e['bpm'].toDouble(),
-        )).toList();
+      if (data.isNotEmpty) {
+        double firstTimestamp = parseCustomTimestamp(data.first['timestamp'])
+            .millisecondsSinceEpoch
+            .toDouble();
 
-        hrvData = data.map<FlSpot>((e) => FlSpot(
-          parseTimestamp(e['timestamp']),
-          e['hrv'].toDouble(),
-        )).toList();
-      });
+        setState(() {
+          bpmData = data
+              .map<FlSpot>((e) => FlSpot(
+                    parseTimestamp(e['timestamp'], firstTimestamp),
+                    e['bpm'].toDouble(),
+                  ))
+              .toList();
+
+          hrvData = data
+              .map<FlSpot>((e) => FlSpot(
+                    parseTimestamp(e['timestamp'], firstTimestamp),
+                    e['hrv'].toDouble(),
+                  ))
+              .toList();
+        });
+      } else {
+        print("⚠️ No session details found.");
+      }
+    } else {
+      print("❌ Failed to fetch session details: ${response.statusCode}");
     }
   }
 
-  double parseTimestamp(String timestamp) {
-    DateTime dateTime = DateTime.parse(timestamp);
-    return dateTime.millisecondsSinceEpoch.toDouble(); // Convert to double
+  /// Fix for timestamp parsing (handles non-ISO format)
+  DateTime parseCustomTimestamp(String timestamp) {
+    return DateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'").parseUtc(timestamp);
+  }
+
+  /// Normalizes timestamps so the graph starts at zero
+  double parseTimestamp(String timestamp, double firstTimestamp) {
+    DateTime dateTime = parseCustomTimestamp(timestamp);
+    return (dateTime.millisecondsSinceEpoch - firstTimestamp) / 1000;
+  }
+
+  Widget buildGraph(List<FlSpot> data, String title, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            title,
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+        ),
+        SizedBox(
+          height: 250,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Container(
+              width: data.length * 30.0, // Ensures graph spreads across width
+              height: 250,
+              child: LineChart(
+                LineChartData(
+                  backgroundColor: Colors.black,
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        interval: (data.isNotEmpty) ? (data.map((e) => e.y).reduce((a, b) => a > b ? a : b) / 4) : 10,
+                        getTitlesWidget: (value, meta) {
+                          return Text(value.toStringAsFixed(1), style: TextStyle(color: Colors.white, fontSize: 12));
+                        },
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: (data.isNotEmpty) ? (data.last.x / 4) : 10,
+                        getTitlesWidget: (value, meta) {
+                          return Text("${value.toInt()}s", style: TextStyle(color: Colors.white, fontSize: 12));
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  gridData: FlGridData(show: true),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: data,
+                      color: color,
+                      isCurved: true,
+                      dotData: FlDotData(show: false),
+                      barWidth: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -117,35 +219,12 @@ class _SessionDetailsPageState extends State<SessionDetailsPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text('BPM & HRV Over Time', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Container(
-                width: bpmData.length * 10.0,
-                height: 300,
-                child: LineChart(
-                  LineChartData(
-                    backgroundColor: Colors.black,
-                    titlesData: FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    gridData: FlGridData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(spots: bpmData, color: Colors.blue, isCurved: true, dotData: FlDotData(show: false)),
-                      LineChartBarData(spots: hrvData, color: Colors.red, isCurved: true, dotData: FlDotData(show: false)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          buildGraph(bpmData, 'BPM Over Time', Colors.blue),
+          buildGraph(hrvData, 'HRV Over Time', Colors.red),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              "Guessed BPM: ${widget.sessionId} | Real BPM: ${widget.sessionId}",
+              "Guessed BPM: ${widget.guessedBpm.toInt()} | Real BPM: ${widget.realBpm.toInt()}",
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
           ),

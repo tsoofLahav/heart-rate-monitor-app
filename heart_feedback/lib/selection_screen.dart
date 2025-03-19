@@ -20,11 +20,11 @@ class SelectionScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-          SizedBox(height: 50), // More spacing before buttons
+          SizedBox(height: 80), // More spacing before buttons
           _buildButton(context, "Visual", "visual"),
-          SizedBox(height: 20), // Increased spacing between buttons
+          SizedBox(height: 50), // Increased spacing between buttons
           _buildButton(context, "Haptic", "haptic"),
-          SizedBox(height: 20),
+          SizedBox(height: 50),
           _buildButton(context, "Audio", "audio"),
           Spacer(),
           Padding(
@@ -32,13 +32,13 @@ class SelectionScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildIconButton(context, 'assets/history_icon.png', 40, () {
+                _buildIconButton(context, 'assets/history_icon.png', () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => SessionListPage()),
                   );
                 }),
-                _buildIconButton(context, 'assets/profile_icon.png', 40, () {
+                _buildIconButton(context, 'assets/profile_icon.png', () {
                   Navigator.pushNamed(context, '/profile');
                 }),
               ],
@@ -65,13 +65,13 @@ class SelectionScreen extends StatelessWidget {
         buttonColor = Colors.grey;
     }
     return SizedBox(
-      width: MediaQuery.of(context).size.width * 0.7, // Buttons spread more across the screen
-      height: 60, // Larger button height
+      width: MediaQuery.of(context).size.width * 0.5, // Buttons spread more across the screen
+      height: 50, // Larger button height
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonColor,
           foregroundColor: Colors.black, // Button text color
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
         onPressed: () {
           Navigator.push(
@@ -86,10 +86,13 @@ class SelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIconButton(BuildContext context, String assetPath, double size, VoidCallback onTap) {
+  Widget _buildIconButton(BuildContext context, String assetPath, VoidCallback onTap) {
     return IconButton(
-      icon: Image.asset(assetPath),
-      iconSize: size, // Smaller icons
+      icon: Image.asset(
+        assetPath,
+        width: MediaQuery.of(context).size.width * 0.1, // Adjust based on screen size
+        height: MediaQuery.of(context).size.width * 0.1, // Keep aspect ratio
+      ),
       onPressed: onTap,
     );
   }

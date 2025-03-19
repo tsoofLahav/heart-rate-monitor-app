@@ -48,6 +48,7 @@ dependencies:
   fl_chart: ^0.70.2
   flutter_animate: ^4.5.2
   camera2: ^0.10.5+73
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
