@@ -47,9 +47,12 @@ def align_reference(noisy_signal, reference_signal, num_taps):
     return aligned_reference  # Final aligned reference, same length as noisy signal
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.0, gamma=1.5,
-               min_trust=0.1, max_trust=0.9, max_artifact_streak=6, trust_threshold=0.1):
-    """Adaptive LMS filter with artifact detection and strong correction when needed."""
+def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30,
+               beta_correction=1.2, gamma_correction=1.5,  # More aggressive for correction
+               beta_flagging=0.8, gamma_flagging=1.2,  # Less aggressive for flagging artifacts
+               min_trust=0.1, max_trust=0.9,
+               max_artifact_streak=6, trust_threshold_correction=0.2, trust_threshold_flagging=0.1):
+    """Adaptive LMS filter with strong correction but less aggressive artifact streak detection."""
 
     global not_reading
 
@@ -69,24 +72,34 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=30, beta=1.0, gamma=
         y = np.dot(w, x)  # LMS Prediction
         e = signal - y  # Error
 
-        # **Less aggressive artifact detection**
-        trust_factor = np.tanh(beta * (np.linalg.norm(e) / (np.linalg.norm(x) + 1e-8)) ** gamma)
-        trust_factor = np.clip(trust_factor, min_trust, max_trust)
+        # **Aggressive correction trust factor**
+        trust_factor_correction = np.tanh(beta_correction * (np.linalg.norm(e) / (np.linalg.norm(x) + 1e-8)) ** gamma_correction)
+        trust_factor_correction = np.clip(trust_factor_correction, min_trust, max_trust)
 
-        is_artifact = trust_factor < trust_threshold  # Detect artifact less aggressively
+        # **Less aggressive artifact streak detection trust factor**
+        trust_factor_flagging = np.tanh(beta_flagging * (np.linalg.norm(e) / (np.linalg.norm(x) + 1e-8)) ** gamma_flagging)
+        trust_factor_flagging = np.clip(trust_factor_flagging, min_trust, max_trust)
 
-        artifact_streak = artifact_streak + 1 if is_artifact else 0
+        # **Detection thresholds**
+        is_artifact_correction = trust_factor_correction < trust_threshold_correction  # More aggressive for correction
+        is_artifact_flagging = trust_factor_flagging < trust_threshold_flagging  # Less aggressive for flagging
+
+        # **Flag only on less aggressive detection**
+        artifact_streak = artifact_streak + 1 if is_artifact_flagging else 0
         not_reading = artifact_streak >= max_artifact_streak
 
-        # **Strong correction when trust is low**
-        blend_factor = np.clip(1 - trust_factor, 0.75, 1.0) if not is_artifact else 1.0
+        # **Correction: If artifact detected, fully replace signal with reference x**
+        if is_artifact_correction:
+            filtered_signal[i:i + num_taps] = x  # Full correction
+        else:
+            blend_factor = np.clip(1 - trust_factor_correction, 0.75, 1.0)
+            filtered_signal[i:i + num_taps] = blend_factor * x + (1 - blend_factor) * signal  # Partial correction
 
-        filtered_signal[i:i + num_taps] = blend_factor * x + (1 - blend_factor) * signal
-
-        # **Allow adaptation unless artifact detected**
-        w += (mu * np.outer(trust_factor * e, x)) if not is_artifact else 0
+        # **Allow adaptation unless artifact is flagged (less aggressive)**
+        w += (mu * np.outer(trust_factor_correction * e, x)) if not is_artifact_flagging else 0
 
     return filtered_signal
+
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
