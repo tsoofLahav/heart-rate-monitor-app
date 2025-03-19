@@ -3,6 +3,7 @@ from scipy.signal import butter, sosfiltfilt
 from scipy.signal import correlate
 from scipy.interpolate import interp1d
 import logging
+import globals
 
 not_reading = False
 logging.basicConfig(level=logging.DEBUG)
@@ -57,7 +58,10 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
 
     num_taps = fps
     reference_signal = reference_signal[:3 * num_taps]  # Trim reference
-    w = np.zeros((num_taps, num_taps))  # Initialize weight matrix
+    if globals.w is None:
+        w = np.zeros((num_taps, num_taps))  # Initialize weight matrix
+    else:
+        w = globals.w
 
     n = len(noisy_signal)
     filtered_signal = np.zeros(n)
@@ -93,8 +97,8 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
         # **Allow adaptation unless artifact is flagged (less aggressive)**
         w += (mu * np.outer(trust_factor * e, x)) if not is_artifact_flagging else 0
 
+    globals.w = w
     return filtered_signal
-
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):

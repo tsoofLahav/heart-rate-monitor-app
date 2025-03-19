@@ -227,8 +227,12 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
       setState(() {
         _bpm = data["bpm"].toInt();
         _timeIntervals = List<double>.from(data["intervals"]);
+        double adjustment = (widget.mode == "visual") ? 0.1 : 0.05;
+        _timeIntervals = _timeIntervals
+        .map((interval) => (interval - adjustment).clamp(0.0, double.infinity)).toList();
       });
     }
+
   }
 
   void _playFeedback() {
