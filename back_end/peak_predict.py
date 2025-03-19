@@ -88,7 +88,9 @@ def ar_predict(intervals, target_time=10.0):
     predicted_intervals = np.append(predicted_intervals, target_time - total_time)
 
     if predicted_intervals[0] - last_interval <= 0:
+        last_interval = last_interval - predicted_intervals[0]
         predicted_intervals = predicted_intervals[1:]
+        predicted_intervals[0] = predicted_intervals[0] - last_interval
     else:
         predicted_intervals[0] = predicted_intervals[0] - last_interval
 
