@@ -28,7 +28,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
   final AudioPlayer _audioPlayer = AudioPlayer();
   late AnimationController _animationController;
   Future<Map<String, dynamic>>? _previousResponse; // Stores the last response
-  Color _circleColor = const Color.fromARGB(255, 33, 240, 243); // Default color
+  Color _circleColor = const Color.fromARGB(255, 19, 196, 178); // Default color
   int _sessionId = 0; // Store session ID
   List<Color> colorPalette = [
     const Color.fromARGB(255, 19, 196, 178),
@@ -304,7 +304,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     for (int i = 1; i < _timeIntervals.length - 1; i++) {
       setState(() {
-        _circleColor = colorPalette[Random().nextInt(colorPalette.length)];
+        //_circleColor = colorPalette[Random().nextInt(colorPalette.length)];
         _animationController.forward(from: 0).then((_) {
           _animationController.reverse();
         });
@@ -315,10 +315,12 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> with SingleTicker
 
     // ✅ Final color update before last interval
     setState(() {
-      _circleColor = colorPalette[Random().nextInt(colorPalette.length)];
+      //_circleColor = colorPalette[Random().nextInt(colorPalette.length)];
+      _animationController.forward(from: 0).then((_) {
+        _animationController.reverse();
+      });
     });
 
-    _animationController.forward(from: 0); // Final bounce
   }
 
 
