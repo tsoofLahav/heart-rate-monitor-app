@@ -15,6 +15,7 @@ It was designed especially for an expirament on heart biofeedback for chronic pa
 ### Machine learning
 
 The app use LMS for cleaning the signal (upper graph), and AR for predicting the future beats- enabling biofeedback effect.
+
 <img src="./graph1.png" alt="Alt text" width="600">
 <img src="./graph2.png" alt="Alt text" width="600">
 
