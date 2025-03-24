@@ -1,9 +1,9 @@
 from scipy.signal import butter, sosfiltfilt
 import logging
-import globals
 from scipy.signal import correlate
 from scipy.interpolate import interp1d
 import numpy as np
+import globals
 
 not_reading = False
 logging.basicConfig(level=logging.DEBUG)
@@ -17,45 +17,44 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def align_reference(noisy_signal, reference_signal, stretch_range=(0.6, 1.2), steps=50):
-    best_corr = -np.inf
-    best_aligned = None
-
+def align_reference(noisy_signal, reference_signal, range_width=0.3, steps=10):
     noisy_signal = np.array(noisy_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
 
-    for factor in np.linspace(stretch_range[0], stretch_range[1], steps):
-        # Stretch/squeeze reference
+    low = max(0.1, globals.base_factor - range_width / 2)
+    high = globals.base_factor + range_width / 2
+
+    best_corr = -np.inf
+    best_aligned = None
+    best_factor = None
+
+    for factor in np.linspace(low, high, steps):
+        # Stretch reference
         stretched_len = int(len(reference_signal) * factor)
         x_old = np.linspace(0, 1, len(reference_signal))
         x_new = np.linspace(0, 1, stretched_len)
-        stretched_ref = interp1d(x_old, reference_signal, kind='cubic', fill_value="extrapolate")(x_new)
+        stretched_ref = interp1d(x_old, reference_signal, kind='cubic', fill_value='extrapolate')(x_new)
 
-        # Pad noisy signal to match length range
+        # Pad noisy signal
         pad_total = max(0, len(stretched_ref) - len(noisy_signal))
-        pad_left = pad_total // 2
-        pad_right = pad_total - pad_left
-        padded_noisy = np.pad(noisy_signal, (pad_left, pad_right), mode='edge')
+        padded_noisy = np.pad(noisy_signal, (pad_total // 2, pad_total - pad_total // 2), mode='edge')
 
         # Cross-correlation
         correlation = correlate(padded_noisy, stretched_ref, mode='valid')
         shift = np.argmax(correlation)
 
-        # Cut the best aligned segment
+        # Cut aligned part
         if shift + len(noisy_signal) <= len(stretched_ref):
             aligned = stretched_ref[shift:shift + len(noisy_signal)]
         else:
-            aligned = np.pad(
-                stretched_ref[shift:],
-                (0, shift + len(noisy_signal) - len(stretched_ref)),
-                mode='edge'
-            )
+            aligned = np.pad(stretched_ref[shift:], (0, shift + len(noisy_signal) - len(stretched_ref)), mode='edge')
 
-        # Save best match
         if np.max(correlation) > best_corr:
             best_corr = np.max(correlation)
             best_aligned = aligned
+            best_factor = factor
 
+        globals.base_factor = best_factor
     return best_aligned
 
 
@@ -126,7 +125,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
-    aligned_reference = align_reference(filtered_signal, reference_signal, fs)
+    aligned_reference = align_reference(filtered_signal, reference_signal)
 
     # Step 2: Apply LMS filtering directly (no DTW)
     clean_signal = lms_filter(filtered_signal, aligned_reference, fps=fs)
