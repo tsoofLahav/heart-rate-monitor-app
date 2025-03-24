@@ -21,8 +21,12 @@ def align_reference(noisy_signal, reference_signal, range_width=0.3, steps=10):
     noisy_signal = np.array(noisy_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
 
-    low = max(0.1, globals.base_factor - range_width / 2)
-    high = globals.base_factor + range_width / 2
+    if globals.base_factor is None:
+        low = 0.6
+        high = 1.2
+    else:
+        low = max(0.1, globals.base_factor - range_width / 2)
+        high = globals.base_factor + range_width / 2
 
     best_corr = -np.inf
     best_aligned = None
