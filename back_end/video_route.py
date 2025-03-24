@@ -52,16 +52,25 @@ def setup_video_route(app):
                 with open("reference.txt", "r") as file:
                     reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
-                clean_signal, filtered_signal, not_reading = denoise_ppg(globals.concatenated_intensities, fps,
-                                                                         reference_signal)
+                clean_signal, filtered_signal, not_reading, aligned_reference = denoise_ppg(
+                    globals.concatenated_intensities, fps, reference_signal)
 
                 # handle not reading
                 if not_reading:
                     globals.concatenated_intensities = []
                     return jsonify({'not_reading': True})
 
+                time_stamps = np.arange(len(clean_signal)) / fps
+                return jsonify({
+                    'final': clean_signal.tolist(),
+                    'filtered': filtered_signal.tolist(),
+                    'reference': aligned_reference.tolist(),
+                    'time_stamps': time_stamps.tolist()
+                })
+
+
 # ############ part 4: peak detection and learning ###################
-                intervals, predicted_intervals = process_peaks(clean_signal, fps)
+                # intervals, predicted_intervals = process_peaks(clean_signal, fps)
                 # time_stamps = np.arange(len(clean_signal)) / fps
                 # if globals.round_count < 6:
                 #     globals.list_intervals_lists.append(predicted_intervals)
@@ -83,12 +92,12 @@ def setup_video_route(app):
                 #         'time_stamps': time_stamps.tolist()
                 #     })
 # ############ part 5: computations and storage ###################
-                bpm = compute_bpm_hrv(intervals)
+                # bpm = compute_bpm_hrv(intervals)
 # ############ part 6: send to front ###################
-                return jsonify({
-                    'intervals': predicted_intervals.tolist(),
-                    'bpm': bpm
-                })
+#                 return jsonify({
+#                     'intervals': predicted_intervals.tolist(),
+#                     'bpm': bpm
+#                 })
 
         except Exception as e:
             logging.error("Error processing PPG:\n%s", traceback.format_exc())

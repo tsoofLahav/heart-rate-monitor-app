@@ -56,7 +56,6 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
     global not_reading
 
     num_taps = fps
-    reference_signal = reference_signal[:3 * num_taps]  # Trim reference
     if globals.w is None:
         w = np.zeros((num_taps, num_taps))  # Initialize weight matrix
     else:
@@ -69,7 +68,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
 
     for i in range(0, n, num_taps):
         signal = noisy_signal[i:i + num_taps]
-        x = align_reference(signal, reference_signal, num_taps)
+        x = reference_signal[i:i + num_taps]
 
         y = np.dot(w, x)  # LMS Prediction
         e = signal - y  # Error
@@ -111,7 +110,9 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
-    # Step 2: Apply LMS filtering directly (no DTW)
-    clean_signal = lms_filter(filtered_signal, reference_signal, fps=fs)
+    aligned_reference = align_reference(filtered_signal, reference_signal, fs)
 
-    return clean_signal.flatten(), filtered_signal.flatten(), not_reading
+    # Step 2: Apply LMS filtering directly (no DTW)
+    clean_signal = lms_filter(filtered_signal, aligned_reference, fps=fs)
+
+    return clean_signal.flatten(), filtered_signal.flatten(), not_reading, aligned_reference
