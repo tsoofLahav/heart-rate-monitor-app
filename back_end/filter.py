@@ -1,9 +1,9 @@
-import numpy as np
 from scipy.signal import butter, sosfiltfilt
-from scipy.signal import correlate
-from scipy.interpolate import interp1d
 import logging
 import globals
+from scipy.signal import correlate
+from scipy.interpolate import interp1d
+import numpy as np
 
 not_reading = False
 logging.basicConfig(level=logging.DEBUG)
@@ -17,40 +17,52 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def align_reference(noisy_signal, reference_signal, num_taps):
-    """Aligns a reference signal to match a padded noisy signal using cross-correlation and resampling."""
+def align_reference(noisy_signal, reference_signal, stretch_range=(0.6, 1.2), steps=50):
+    best_corr = -np.inf
+    best_aligned = None
 
-    # **Step 1: Pad the Noisy Signal (Since It's Shorter)**
-    pad_size = int((1.5 * num_taps - num_taps) / 2)
-    padded_noisy_signal = np.pad(noisy_signal, (pad_size, pad_size), mode='edge')
+    noisy_signal = np.array(noisy_signal).flatten()
+    reference_signal = np.array(reference_signal).flatten()
 
-    # **Step 2: Find the Best Shift Using Cross-Correlation**
-    correlation = correlate(padded_noisy_signal[:int(1.5 * num_taps)], reference_signal, mode='valid')
-    shift = np.argmax(correlation) - (len(reference_signal) // 2)
+    for factor in np.linspace(stretch_range[0], stretch_range[1], steps):
+        # Stretch/squeeze reference
+        stretched_len = int(len(reference_signal) * factor)
+        x_old = np.linspace(0, 1, len(reference_signal))
+        x_new = np.linspace(0, 1, stretched_len)
+        stretched_ref = interp1d(x_old, reference_signal, kind='cubic', fill_value="extrapolate")(x_new)
 
-    # **Step 3: Dynamically Trim Reference Based on Shift**
-    left_trim = max(0, pad_size - shift)  # Reduce left trim if shifted left
-    right_trim = max(0, pad_size + shift)  # Reduce right trim if shifted right
-    aligned_reference = reference_signal[left_trim:len(reference_signal) - right_trim]
+        # Pad noisy signal to match length range
+        pad_total = max(0, len(stretched_ref) - len(noisy_signal))
+        pad_left = pad_total // 2
+        pad_right = pad_total - pad_left
+        padded_noisy = np.pad(noisy_signal, (pad_left, pad_right), mode='edge')
 
-    # Ensure aligned_reference matches noisy_signal length exactly
-    if len(aligned_reference) < len(noisy_signal):
-        aligned_reference = np.pad(aligned_reference, (0, len(noisy_signal) - len(aligned_reference)), mode='edge')
-    elif len(aligned_reference) > len(noisy_signal):
-        aligned_reference = aligned_reference[:len(noisy_signal)]
+        # Cross-correlation
+        correlation = correlate(padded_noisy, stretched_ref, mode='valid')
+        shift = np.argmax(correlation)
 
-    # **Step 4: Resample to Match the Noisy Signal More Accurately**
-    resample_factor = len(noisy_signal) / len(aligned_reference)
-    resampler = interp1d(np.linspace(0, 1, len(aligned_reference)), aligned_reference, kind='cubic', fill_value="extrapolate")
-    aligned_reference = resampler(np.linspace(0, 1, len(noisy_signal)))
+        # Cut the best aligned segment
+        if shift + len(noisy_signal) <= len(stretched_ref):
+            aligned = stretched_ref[shift:shift + len(noisy_signal)]
+        else:
+            aligned = np.pad(
+                stretched_ref[shift:],
+                (0, shift + len(noisy_signal) - len(stretched_ref)),
+                mode='edge'
+            )
 
-    return aligned_reference  # Final aligned reference, same length as noisy signal
+        # Save best match
+        if np.max(correlation) > best_corr:
+            best_corr = np.max(correlation)
+            best_aligned = aligned
+
+    return best_aligned
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
                beta=1.5, gamma=2,  # Less aggressive for flagging artifacts
                min_trust=0.1, max_trust=0.9,
-               max_artifact_streak=5, trust_threshold_correction=0.9, trust_threshold_flagging=0.1):
+               max_artifact_streak=5, trust_threshold_correction=0.4, trust_threshold_flagging=0.1):
     """Adaptive LMS filter with strong correction but less aggressive artifact streak detection."""
 
     global not_reading
@@ -103,9 +115,13 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     """Denoises PPG using LMS filtering without DTW."""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
-    scaling_factor = np.std(reference_signal)  # Use reference std as a baseline
-    reference_signal = (reference_signal - np.mean(reference_signal)) / scaling_factor
-    ppg_signal = (ppg_signal - np.mean(ppg_signal)) / scaling_factor
+
+    # Normalize each to zero mean
+    ppg_signal -= np.mean(ppg_signal)
+    reference_signal -= np.mean(reference_signal)
+
+    # Scale both to have the same std (e.g., the average std)
+    ppg_signal = (ppg_signal / np.std(ppg_signal)) * np.std(reference_signal)
 
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
