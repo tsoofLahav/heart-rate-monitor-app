@@ -9,7 +9,7 @@ not_reading = False
 logging.basicConfig(level=logging.DEBUG)
 
 
-def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
+def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
     nyq = 0.5 * fs
     low, high = lowcut / nyq, highcut / nyq
@@ -17,56 +17,46 @@ def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
     return sosfiltfilt(sos, signal)
 
 
-def align_reference(noisy_signal, reference_signal, range_width=0.3, steps=10):
+def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 1.2), steps=20):
+    """
+    Finds the best-matching segment in a longer reference for a given noisy signal,
+    allowing stretching/squeezing.
+    Returns the aligned segment from the reference (same length as noisy_signal).
+    """
     noisy_signal = np.array(noisy_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
 
-    if globals.base_factor is None:
-        low = 0.6
-        high = 1.2
-    else:
-        low = max(0.1, globals.base_factor - range_width / 2)
-        high = globals.base_factor + range_width / 2
-
     best_corr = -np.inf
-    best_aligned = None
-    best_factor = None
+    best_segment = None
 
-    for factor in np.linspace(low, high, steps):
-        # Stretch reference
+    for factor in np.linspace(*stretch_range, steps):
+        # Stretch the reference
         stretched_len = int(len(reference_signal) * factor)
         x_old = np.linspace(0, 1, len(reference_signal))
         x_new = np.linspace(0, 1, stretched_len)
-        stretched_ref = interp1d(x_old, reference_signal, kind='cubic', fill_value='extrapolate')(x_new)
+        stretched_ref = interp1d(x_old, reference_signal, kind='cubic', fill_value="extrapolate")(x_new)
 
-        # Pad noisy signal
-        pad_total = max(0, len(stretched_ref) - len(noisy_signal))
-        padded_noisy = np.pad(noisy_signal, (pad_total // 2, pad_total - pad_total // 2), mode='edge')
+        # Slide over the stretched reference to find best matching window
+        for start in range(0, len(stretched_ref) - len(noisy_signal) + 1):
+            segment = stretched_ref[start:start + len(noisy_signal)]
 
-        # Cross-correlation
-        correlation = correlate(padded_noisy, stretched_ref, mode='valid')
-        shift = np.argmax(correlation)
+            # Normalize both before correlation
+            segment_norm = (segment - np.mean(segment)) / (np.std(segment) + 1e-8)
+            noisy_norm = (noisy_signal - np.mean(noisy_signal)) / (np.std(noisy_signal) + 1e-8)
+            corr = np.dot(segment_norm, noisy_norm)
 
-        # Cut aligned part
-        if shift + len(noisy_signal) <= len(stretched_ref):
-            aligned = stretched_ref[shift:shift + len(noisy_signal)]
-        else:
-            aligned = np.pad(stretched_ref[shift:], (0, shift + len(noisy_signal) - len(stretched_ref)), mode='edge')
+            if corr > best_corr:
+                best_corr = corr
+                best_segment = segment
 
-        if np.max(correlation) > best_corr:
-            best_corr = np.max(correlation)
-            best_aligned = aligned
-            best_factor = factor
-
-        globals.base_factor = best_factor
-    return best_aligned
+    return best_segment
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
-               beta=1.5, gamma=2,
-               min_trust=0.1, max_trust=0.9,
-               max_artifact_streak=5, trust_threshold_correction=0.25, trust_threshold_flagging=0.1):
-    """Adaptive LMS filter with smoother integration of reference and stronger reliance on the original signal."""
+def lms_filter(noisy_signal, reference_signal, mu=0.07, fps=24,
+               beta=1.8, gamma=2.2,
+               min_trust=0.05, max_trust=0.95,
+               max_artifact_streak=4, trust_threshold_correction=0.3, trust_threshold_flagging=0.15):
+    """Adaptive LMS filter with more aggressive artifact detection and stronger learning on clean signal."""
 
     global not_reading
 
@@ -100,14 +90,12 @@ def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
         not_reading = artifact_streak >= max_artifact_streak
 
         if is_artifact_correction:
-            # Strong correction: fallback to reference
             filtered_signal[i:i + num_taps] = x
         else:
-            # Lighter correction: mostly original signal
-            blend_factor = np.clip(1 - trust_factor, 0.2, 0.5)  # ≤ 50% reference
+            # Stronger correction using reference (more blend)
+            blend_factor = np.clip(1 - trust_factor, 0.4, 0.7)  # up to 70% reference
             filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * x
 
-        # Allow learning unless clearly an artifact
         if not is_artifact_flagging:
             w += mu * np.outer(trust_factor * e, x)
 
