@@ -55,7 +55,7 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
                min_trust=0.0, max_trust=0.1,
                max_artifact_streak=5,
-               trust_threshold_correction=0.15):
+               trust_threshold_correction=0.125):
     """Aggressive correction if signal deviates, minimal intervention when clean."""
 
     global not_reading
