@@ -37,7 +37,7 @@ def setup_video_route(app):
                 raise Exception("No frames were processed.")
 
             reference = create_ppg(intensities, fps)
-            return jsonify({'reference': reference})
+            return jsonify({'reference': reference.tolist()})
 # ############ part 2: concatenating ###################
             segment_length = int(5 * fps)
 
