@@ -2,7 +2,7 @@ from scipy.signal import butter, sosfiltfilt
 import numpy as np
 
 
-def butter_bandpass_filter(signal, fs, lowcut=0.5, highcut=5.0, order=4):
+def butter_bandpass_filter(signal, fs, lowcut=0.7, highcut=3.0, order=6):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
     nyq = 0.5 * fs
     low, high = lowcut / nyq, highcut / nyq
