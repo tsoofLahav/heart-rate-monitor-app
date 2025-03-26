@@ -52,11 +52,13 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
     return best_segment
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.07, fps=24,
-               beta=1.8, gamma=2.2,
+def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
+               beta=1.5, gamma=2.0,
                min_trust=0.05, max_trust=0.95,
-               max_artifact_streak=4, trust_threshold_correction=0.3, trust_threshold_flagging=0.15):
-    """Adaptive LMS filter with more aggressive artifact detection and stronger learning on clean signal."""
+               max_artifact_streak=5,
+               trust_threshold_correction=0.5,  # more aggressive correction
+               trust_threshold_flagging=0.1):   # same flagging logic
+    """Aggressive correction if signal deviates, minimal intervention when clean."""
 
     global not_reading
 
@@ -90,12 +92,14 @@ def lms_filter(noisy_signal, reference_signal, mu=0.07, fps=24,
         not_reading = artifact_streak >= max_artifact_streak
 
         if is_artifact_correction:
+            # Replace with reference — stronger correction
             filtered_signal[i:i + num_taps] = x
         else:
-            # Stronger correction using reference (more blend)
-            blend_factor = np.clip(1 - trust_factor, 0.4, 0.7)  # up to 70% reference
+            # Lighter correction — stay close to original
+            blend_factor = np.clip(1 - trust_factor, 0.05, 0.25)  # mostly original
             filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * x
 
+        # Stronger learning from clean signal
         if not is_artifact_flagging:
             w += mu * np.outer(trust_factor * e, x)
 
