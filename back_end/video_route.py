@@ -31,15 +31,15 @@ def setup_video_route(app):
                 raise Exception("Invalid video file.")
 
             # Process video: adjust FPS & extract intensities
-            fps, intensities = process_video_frames(video_path, target_duration=30)
+            fps, intensities = process_video_frames(video_path, target_duration=5)
 
             if not intensities:
                 raise Exception("No frames were processed.")
 
-            reference = create_ppg(intensities, fps)
-            time_stamps = np.arange(len(reference)) / fps
-            return jsonify({'reference': reference.tolist(),
-                            'time_stamps': time_stamps.tolist()})
+            # reference = create_ppg(intensities, fps)
+            # time_stamps = np.arange(len(reference)) / fps
+            # return jsonify({'reference': reference.tolist(),
+            #                 'time_stamps': time_stamps.tolist()})
 # ############ part 2: concatenating ###################
             segment_length = int(5 * fps)
 
