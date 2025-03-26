@@ -53,11 +53,9 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
-               beta=1.5, gamma=2.0,
-               min_trust=0.05, max_trust=0.95,
+               min_trust=0.0, max_trust=0.1,
                max_artifact_streak=5,
-               trust_threshold_correction=0.5,  # more aggressive correction
-               trust_threshold_flagging=0.1):   # same flagging logic
+               trust_threshold_correction=0.6):
     """Aggressive correction if signal deviates, minimal intervention when clean."""
 
     global not_reading
@@ -82,16 +80,15 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
         y = np.dot(w, x)
         e = signal - y
 
-        trust_factor = np.tanh(beta * (np.linalg.norm(e) / (np.linalg.norm(x) + 1e-8)) ** gamma)
-        trust_factor = np.clip(trust_factor, min_trust, max_trust)
+        corr = np.corrcoef(signal, x)[0, 1]
+        trust_factor = np.clip(corr, min_trust, max_trust)
 
-        is_artifact_correction = trust_factor < trust_threshold_correction
-        is_artifact_flagging = trust_factor < trust_threshold_flagging
+        is_artifact = trust_factor < trust_threshold_correction
 
-        artifact_streak = artifact_streak + 1 if is_artifact_flagging else 0
+        artifact_streak = artifact_streak + 1 if is_artifact else 0
         not_reading = artifact_streak >= max_artifact_streak
 
-        if is_artifact_correction:
+        if is_artifact:
             # Replace with reference — stronger correction
             filtered_signal[i:i + num_taps] = x
         else:
@@ -100,7 +97,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
             filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * x
 
         # Stronger learning from clean signal
-        if not is_artifact_flagging:
+        if not is_artifact:
             w += mu * np.outer(trust_factor * e, x)
 
     globals.w = w
