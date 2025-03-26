@@ -1,5 +1,6 @@
 import numpy as np
 from data_route import store_measurement_internal, get_current_session_id
+import globals
 
 
 def compute_bpm_hrv(intervals):
@@ -13,7 +14,7 @@ def compute_bpm_hrv(intervals):
     # Compute BPM
     avg_interval = np.mean(valid_intervals)
     bpm = 60 / avg_interval if avg_interval > 0 else 0
-
+    globals.average_gap = avg_interval
     # Compute HRV (Standard deviation of NN intervals)
     hrv = np.std(valid_intervals)
     session_id = get_current_session_id()

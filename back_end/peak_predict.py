@@ -5,15 +5,25 @@ import math
 import globals
 
 
-def detect_peaks(signal, fps):
+def detect_peaks(signal, fps, std_multiplier=0.7):
+    """
+    Dynamically detect peaks based on global average_gap and signal std.
+    """
+    signal = np.array(signal)
 
-    min_distance = int(fps * 0.4)  # Ensure peaks are spaced by at least 0.25s
-    prominence = 0.1  # Peak must stand out
-    min_height = 0.5  # Minimum height threshold
+    # Convert average gap (in seconds) to samples
+    if globals.average_gap:
+        min_distance = int(globals.average_gap * fps * 0.8)  # allow some variation
+    else:
+        min_distance = int(fps * 0.4)  # fallback default
 
-    # Detect peaks normally
+    # Dynamic height based on standard deviation
+    min_height = np.std(signal) * std_multiplier
+
+    # Peak must still have some prominence
+    prominence = min_height * 0.6
+
     peaks, properties = find_peaks(signal, height=min_height, distance=min_distance, prominence=prominence)
-
     return peaks
 
 
