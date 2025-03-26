@@ -118,7 +118,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
-    aligned_reference = align_reference(filtered_signal, reference_signal)
+    aligned_reference = match_reference_segment(filtered_signal, reference_signal)
 
     # Step 2: Apply LMS filtering directly (no DTW)
     clean_signal = lms_filter(filtered_signal, aligned_reference, fps=fs)
