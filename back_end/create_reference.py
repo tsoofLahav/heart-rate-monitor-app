@@ -2,7 +2,7 @@ from scipy.signal import butter, sosfiltfilt
 import numpy as np
 
 
-def butter_bandpass_filter(signal, fs, lowcut=0.7, highcut=3.0, order=6):
+def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=2.8, order=6):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
     nyq = 0.5 * fs
     low, high = lowcut / nyq, highcut / nyq
@@ -11,7 +11,6 @@ def butter_bandpass_filter(signal, fs, lowcut=0.7, highcut=3.0, order=6):
 
 
 def create_ppg(ppg_signal, fs):
-
     ppg_signal = np.array(ppg_signal).flatten()
 
     # Normalize each to zero mean
