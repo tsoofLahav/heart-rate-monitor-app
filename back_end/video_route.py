@@ -3,6 +3,7 @@ import os
 from filter import denoise_ppg
 from peak_predict import process_peaks, merge_intervals
 from more_calculations import compute_bpm_hrv
+from create_reference import create_ppg
 import ast
 import traceback
 import globals
@@ -30,11 +31,13 @@ def setup_video_route(app):
                 raise Exception("Invalid video file.")
 
             # Process video: adjust FPS & extract intensities
-            fps, intensities = process_video_frames(video_path)
+            fps, intensities = process_video_frames(video_path, target_duration=30)
 
             if not intensities:
                 raise Exception("No frames were processed.")
 
+            reference = create_ppg(intensities, fps)
+            return jsonify({'reference': reference})
 # ############ part 2: concatenating ###################
             segment_length = int(5 * fps)
 

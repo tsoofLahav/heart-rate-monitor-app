@@ -63,52 +63,53 @@ def align_reference(noisy_signal, reference_signal, range_width=0.3, steps=10):
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.05, fps=24,
-               beta=1.5, gamma=2,  # Less aggressive for flagging artifacts
+               beta=1.5, gamma=2,
                min_trust=0.1, max_trust=0.9,
-               max_artifact_streak=5, trust_threshold_correction=0.4, trust_threshold_flagging=0.1):
-    """Adaptive LMS filter with strong correction but less aggressive artifact streak detection."""
+               max_artifact_streak=5, trust_threshold_correction=0.25, trust_threshold_flagging=0.1):
+    """Adaptive LMS filter with smoother integration of reference and stronger reliance on the original signal."""
 
     global not_reading
 
     num_taps = fps
     if globals.w is None:
-        w = np.zeros((num_taps, num_taps))  # Initialize weight matrix
+        w = np.zeros((num_taps, num_taps))
     else:
         w = globals.w
 
     n = len(noisy_signal)
     filtered_signal = np.zeros(n)
-
     artifact_streak = 0
 
     for i in range(0, n, num_taps):
         signal = noisy_signal[i:i + num_taps]
         x = reference_signal[i:i + num_taps]
 
-        y = np.dot(w, x)  # LMS Prediction
-        e = signal - y  # Error
+        if len(signal) < num_taps or len(x) < num_taps:
+            break
 
-        # **Aggressive correction trust factor**
+        y = np.dot(w, x)
+        e = signal - y
+
         trust_factor = np.tanh(beta * (np.linalg.norm(e) / (np.linalg.norm(x) + 1e-8)) ** gamma)
         trust_factor = np.clip(trust_factor, min_trust, max_trust)
 
-        # **Detection thresholds**
-        is_artifact_correction = trust_factor < trust_threshold_correction  # More aggressive for correction
-        is_artifact_flagging = trust_factor < trust_threshold_flagging  # Less aggressive for flagging
+        is_artifact_correction = trust_factor < trust_threshold_correction
+        is_artifact_flagging = trust_factor < trust_threshold_flagging
 
-        # **Flag only on less aggressive detection**
         artifact_streak = artifact_streak + 1 if is_artifact_flagging else 0
         not_reading = artifact_streak >= max_artifact_streak
 
-        # **Correction: If artifact detected, fully replace signal with reference x**
         if is_artifact_correction:
-            filtered_signal[i:i + num_taps] = x  # Full correction
+            # Strong correction: fallback to reference
+            filtered_signal[i:i + num_taps] = x
         else:
-            blend_factor = np.clip(1 - trust_factor, 0.75, 1.0)
-            filtered_signal[i:i + num_taps] = blend_factor * x + (1 - blend_factor) * signal  # Partial correction
+            # Lighter correction: mostly original signal
+            blend_factor = np.clip(1 - trust_factor, 0.2, 0.5)  # ≤ 50% reference
+            filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * x
 
-        # **Allow adaptation unless artifact is flagged (less aggressive)**
-        w += (mu * np.outer(trust_factor * e, x)) if not is_artifact_flagging else 0
+        # Allow learning unless clearly an artifact
+        if not is_artifact_flagging:
+            w += mu * np.outer(trust_factor * e, x)
 
     globals.w = w
     return filtered_signal
