@@ -53,9 +53,8 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
-               min_trust=0.0, max_trust=0.1,
                max_artifact_streak=5,
-               trust_threshold_correction=0.125):
+               trust_threshold_correction=0.5):
     """Aggressive correction if signal deviates, minimal intervention when clean."""
 
     global not_reading
@@ -80,8 +79,17 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
         y = np.dot(w, x)
         e = signal - y
 
+        # Amplitude ratio
         std_ratio = np.std(signal) / (np.std(x) + 1e-8)
-        trust_factor = np.clip(1 / std_ratio, min_trust, max_trust)
+        amp_score = np.exp(-abs(np.log(std_ratio)))  # closer to 1 when ratio ≈ 1
+
+        # Wave width estimation (based on zero crossings of second derivative)
+        width_ratio = len(signal) / (np.count_nonzero(np.diff(np.sign(np.diff(signal)))) + 1e-8)
+        ref_width = len(x) / (np.count_nonzero(np.diff(np.sign(np.diff(x)))) + 1e-8)
+        width_score = np.exp(-abs(np.log(width_ratio / ref_width)))  # closer to 1 when width matches
+
+        # Combine scores
+        trust_factor = (amp_score*3 + width_score) / 4
 
         is_artifact = trust_factor < trust_threshold_correction
 
