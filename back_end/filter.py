@@ -98,11 +98,11 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
 
         if is_artifact:
             # Replace with reference — stronger correction
-            filtered_signal[i:i + num_taps] = x
+            filtered_signal[i:i + num_taps] = y
         else:
             # Lighter correction — stay close to original
-            blend_factor = np.clip(1 - trust_factor, 0.05, 0.25)  # mostly original
-            filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * y
+            blend_factor = 1 - trust_factor  # mostly original
+            filtered_signal[i:i + num_taps] = trust_factor * signal + blend_factor * y
 
         # Stronger learning from clean signal
         if not is_artifact:
