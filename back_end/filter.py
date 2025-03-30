@@ -102,11 +102,11 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
         else:
             # Lighter correction — stay close to original
             blend_factor = np.clip(1 - trust_factor, 0.05, 0.25)  # mostly original
-            filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * x
+            filtered_signal[i:i + num_taps] = (1 - blend_factor) * signal + blend_factor * y
 
         # Stronger learning from clean signal
         if not is_artifact:
-            w += mu * np.outer(trust_factor * e, x)
+            w += mu * np.outer(trust_factor * e, signal)
 
     globals.w = w
     return filtered_signal
