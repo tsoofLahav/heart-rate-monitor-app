@@ -54,7 +54,7 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
                max_artifact_streak=5,
-               trust_threshold_correction=0.05):
+               trust_threshold=0.5):
     """Aggressive correction if signal deviates, minimal intervention when clean."""
 
     global not_reading
@@ -90,9 +90,9 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
 
         # Combine scores
         trust_factor = (amp_score*3 + width_score) / 4
-        print(trust_factor)
+        print("trust_factor:" + str(trust_factor))
 
-        is_artifact = trust_factor < trust_threshold_correction
+        is_artifact = trust_factor < trust_threshold
 
         artifact_streak = artifact_streak + 1 if is_artifact else 0
         not_reading = artifact_streak >= max_artifact_streak
@@ -123,7 +123,9 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     reference_signal -= np.mean(reference_signal)
 
     # Scale both to have the same std (e.g., the average std)
-    ppg_signal = (ppg_signal / np.std(ppg_signal)) * np.std(reference_signal)
+    mad = np.median(np.abs(ppg_signal - np.median(ppg_signal)))
+    robust_std = mad * 1.4826
+    ppg_signal = (ppg_signal / robust_std) * np.std(reference_signal)
 
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
