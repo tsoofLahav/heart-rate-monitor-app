@@ -61,9 +61,6 @@ def setup_video_route(app):
                     globals.concatenated_intensities = []
                     return jsonify({'not_reading': True})
 
-                time_stamps = np.arange(len(clean_signal)) / fps
-
-
 # ############ part 4: peak detection and learning ###################
                 intervals, predicted_intervals = process_peaks(clean_signal, fps)
                 time_stamps = np.arange(len(clean_signal)) / fps

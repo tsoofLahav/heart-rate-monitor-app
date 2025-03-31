@@ -111,7 +111,7 @@ def split_intervals_last5sec(intervals, target_time=5.0):
     chunk1, chunk2 = [], []
     sum_time = 0.0
 
-    # Start from the end and work backward to get the last 5 seconds
+    # Start from the end and work backward to get the last 5 seconds.
     reversed_intervals = intervals[::-1]
     for i, interval in enumerate(reversed_intervals):
         if sum_time + interval <= target_time:
