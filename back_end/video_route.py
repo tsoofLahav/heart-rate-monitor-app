@@ -62,36 +62,31 @@ def setup_video_route(app):
                     return jsonify({'not_reading': True})
 
                 time_stamps = np.arange(len(clean_signal)) / fps
-                return jsonify({
-                    'final': clean_signal.tolist(),
-                    'filtered': filtered_signal.tolist(),
-                    'reference': aligned_reference.tolist(),
-                    'time_stamps': time_stamps.tolist()
-                })
 
 
 # ############ part 4: peak detection and learning ###################
-                # intervals, predicted_intervals = process_peaks(clean_signal, fps)
-                # time_stamps = np.arange(len(clean_signal)) / fps
-                # if globals.round_count < 6:
-                #     globals.list_intervals_lists.append(predicted_intervals)
-                #     # Return processed data as a JSON response
-                #     return jsonify({
-                #         'final': clean_signal.tolist(),
-                #         'intervals': intervals,
-                #         'time_stamps': time_stamps.tolist()
-                #     })
-                # else:
-                #     concatenated_intervals = merge_intervals(globals.list_intervals_lists[-3], globals.list_intervals_lists[-2])
-                #     concatenated_intervals = merge_intervals(concatenated_intervals,
-                #                                              globals.list_intervals_lists[-1])
-                #     # Return processed data as a JSON response
-                #     return jsonify({
-                #         'final': clean_signal.tolist(),
-                #         'intervals': intervals,
-                #         'predicted_intervals': concatenated_intervals.tolist(),
-                #         'time_stamps': time_stamps.tolist()
-                #     })
+                intervals, predicted_intervals = process_peaks(clean_signal, fps)
+                time_stamps = np.arange(len(clean_signal)) / fps
+                if globals.round_count < 6:
+                    globals.list_intervals_lists.append(predicted_intervals)
+                    # Return processed data as a JSON response
+                    return jsonify({
+                        'final': clean_signal.tolist(),
+                        'filtered': filtered_signal.tolist(),
+                        'reference': aligned_reference.tolist(),
+                        'time_stamps': time_stamps.tolist()
+                    })
+                else:
+                    concatenated_intervals = merge_intervals(globals.list_intervals_lists[-3], globals.list_intervals_lists[-2])
+                    concatenated_intervals = merge_intervals(concatenated_intervals,
+                                                             globals.list_intervals_lists[-1])
+                    # Return processed data as a JSON response
+                    return jsonify({
+                        'final': clean_signal.tolist(),
+                        'intervals': intervals,
+                        'predicted_intervals': concatenated_intervals.tolist(),
+                        'time_stamps': time_stamps.tolist()
+                    })
 # ############ part 5: computations and storage ###################
                 # bpm = compute_bpm_hrv(intervals)
 # ############ part 6: send to front ###################

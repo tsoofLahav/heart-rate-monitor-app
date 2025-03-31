@@ -59,22 +59,16 @@ def merge_intervals(intervals1, intervals2):
     return merged_intervals
 
 
-def ar_predict(intervals, target_time=10.0):
+def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
-
+    intervals = globals.past_intervals
     last_interval = intervals[-1]
     target_time = target_time + last_interval
-
-    intervals = merge_intervals(globals.past_intervals, intervals)
-    if len(intervals) > 60:
-        globals.past_intervals = intervals[-60:]
-    else:
-        globals.past_intervals = intervals
 
     n = int(math.sqrt(len(globals.past_intervals)))
 
     # Remove first and last interval from training
-    intervals = globals.past_intervals[1:-1]
+    intervals = intervals[:-1]
 
     lags = min(n, len(intervals) - 1)  # Ensure at least 2 lags
 
@@ -107,27 +101,32 @@ def ar_predict(intervals, target_time=10.0):
     return np.array(predicted_intervals)
 
 
-def split_intervals_exactly(intervals, target_time=5.0):
-    """Splits a list of intervals (totaling 10s) into two parts of exactly 5s each."""
+def split_intervals_last5sec(intervals, target_time=5.0):
+    """Splits a list of intervals so that the second part is exactly 5s,
+    and the first part is whatever is before that."""
+    total_time = sum(intervals)
+    if total_time < target_time:
+        raise ValueError("Total time is less than target_time for the second part.")
+
     chunk1, chunk2 = [], []
     sum_time = 0.0
 
-    for i, interval in enumerate(intervals):
+    # Start from the end and work backward to get the last 5 seconds
+    reversed_intervals = intervals[::-1]
+    for i, interval in enumerate(reversed_intervals):
         if sum_time + interval <= target_time:
-            chunk1.append(interval)
+            chunk2.insert(0, interval)
             sum_time += interval
         else:
             remaining_time = target_time - sum_time
-            chunk1.append(remaining_time)  # Cut interval to fit exactly 5s
-            chunk2.append(interval - remaining_time)  # Remaining part in chunk2
-            chunk2.extend(intervals[i + 1:])  # Add remaining intervals to chunk2
-            break  # Stop after reaching 5s
+            chunk2.insert(0, remaining_time)
+            chunk1 = intervals[:len(intervals) - i - 1] + [interval - remaining_time]
+            break
 
     return np.array(chunk1), np.array(chunk2)
 
 
 def process_peaks(filtered_signal, fps):
-    global past_intervals
     """Process 15s filtered signal, detect peaks, predict next intervals, and return x4."""
 
     # Convert to time
@@ -138,14 +137,17 @@ def process_peaks(filtered_signal, fps):
     peaks = detect_peaks(filtered_signal, fps)
     intervals = compute_intervals(peaks, total_length, fps)
 
+    if globals.past_intervals is None:
+        globals.past_intervals = intervals[1:]
+    else:
+        x0x1_intervals, x2_intervals = split_intervals_last5sec(intervals)
+        globals.past_intervals = merge_intervals(globals.past_intervals, x2_intervals)
+
     # **Predict next slightly over 10s**
-    predicted_intervals = ar_predict(intervals, target_time=10)
+    predicted_intervals = ar_predict(target_time=10)
 
     # **Trim predicted intervals into 5s chunks**
-    x3_intervals, x4_intervals = split_intervals_exactly(predicted_intervals, segment_length)
-
-    # Save x1, x2, x3 for learning
-    # previous_intervals = np.concatenate([x1_intervals, x2_intervals, x3_intervals])
+    x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
 
     return intervals, x4_intervals  # Return x4 to main page
 
