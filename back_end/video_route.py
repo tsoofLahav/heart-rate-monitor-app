@@ -49,7 +49,7 @@ def setup_video_route(app):
                 else:
                     globals.concatenated_intensities = globals.concatenated_intensities[segment_length:] + intensities
 
-# ############ part 3: filtering ###################
+# ############ part 3: filtering ####################
                 with open("reference.txt", "r") as file:
                     reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
