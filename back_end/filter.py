@@ -90,6 +90,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
 
         # Combine scores
         trust_factor = (amp_score*3 + width_score) / 4
+        print(trust_factor)
 
         is_artifact = trust_factor < trust_threshold_correction
 
