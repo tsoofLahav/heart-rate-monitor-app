@@ -59,6 +59,7 @@ def setup_video_route(app):
                 # handle not reading
                 if not_reading:
                     globals.concatenated_intensities = []
+                    globals.round_count = 0
                     return jsonify({'not_reading': True})
 
 # ############ part 4: peak detection and learning ###################
