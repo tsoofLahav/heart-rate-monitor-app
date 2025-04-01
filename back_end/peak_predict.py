@@ -7,7 +7,7 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-def detect_peaks(signal, fps, std_multiplier=0.7):
+def detect_peaks(signal, fps, std_multiplier=0.5):
     """
     Dynamically detect peaks based on global average_gap and signal std.
     """
@@ -17,7 +17,7 @@ def detect_peaks(signal, fps, std_multiplier=0.7):
     if globals.average_gap:
         min_distance = int(globals.average_gap * fps * 0.8)  # allow some variation
     else:
-        min_distance = int(fps * 0.4)  # fallback default
+        min_distance = int(fps * 0.3)  # fallback default
 
     # Dynamic height based on standard deviation
     min_height = np.std(signal) * std_multiplier
