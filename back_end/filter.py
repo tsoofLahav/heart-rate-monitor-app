@@ -52,62 +52,42 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
     return best_segment
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
-               max_artifact_streak=5,
-               trust_threshold=0.7):
-    """Aggressive correction if signal deviates, minimal intervention when clean."""
+def lms_filter(noisy_signal, reference_signal, mu=0.1, fps=24, trust_threshold=0.6):
+    """Single-step LMS filter over a full interval (per round), with adaptive trust-based correction."""
 
     global not_reading
 
-    num_taps = fps
+    num_taps = len(noisy_signal)
     if globals.w is None:
-        w = np.zeros((num_taps, num_taps))
+        globals.w = np.zeros((num_taps, num_taps))
+    w = globals.w
+
+    signal = noisy_signal
+    x = match_reference_segment(signal, reference_signal)
+
+    y = np.dot(w, x)
+    e = signal - y
+
+    # Trust calculation
+    std_ratio = np.std(signal) / (np.std(x) + 1e-8)
+    amp_score = np.exp(-abs(np.log(std_ratio)))
+
+    width_ratio = len(signal) / (np.count_nonzero(np.diff(np.sign(np.diff(signal)))) + 1e-8)
+    ref_width = len(x) / (np.count_nonzero(np.diff(np.sign(np.diff(x)))) + 1e-8)
+    width_score = np.exp(-abs(np.log(width_ratio / ref_width)))
+
+    trust_factor = (amp_score * 3 + width_score) / 4
+    print("trust_factor:", trust_factor)
+
+    is_artifact = trust_factor < trust_threshold
+    not_reading = is_artifact
+
+    if is_artifact:
+        filtered_signal = x.copy()
     else:
-        w = globals.w
-
-    n = len(noisy_signal)
-    filtered_signal = np.zeros(n)
-    artifact_streak = 0
-
-    for i in range(0, n, num_taps):
-        signal = noisy_signal[i:i + num_taps]
-        x = reference_signal[i:i + num_taps]
-
-        if len(signal) < num_taps or len(x) < num_taps:
-            break
-
-        y = np.dot(w, x)
-        e = signal - y
-
-        # Amplitude ratio
-        std_ratio = np.std(signal) / (np.std(x) + 1e-8)
-        amp_score = np.exp(-abs(np.log(std_ratio)))  # closer to 1 when ratio ≈ 1
-
-        # Wave width estimation (based on zero crossings of second derivative)
-        width_ratio = len(signal) / (np.count_nonzero(np.diff(np.sign(np.diff(signal)))) + 1e-8)
-        ref_width = len(x) / (np.count_nonzero(np.diff(np.sign(np.diff(x)))) + 1e-8)
-        width_score = np.exp(-abs(np.log(width_ratio / ref_width)))  # closer to 1 when width matches
-
-        # Combine scores
-        trust_factor = (amp_score*3 + width_score) / 4
-        print("trust_factor:" + str(trust_factor))
-
-        is_artifact = trust_factor < trust_threshold
-
-        artifact_streak = artifact_streak + 1 if is_artifact else 0
-        not_reading = artifact_streak >= max_artifact_streak
-
-        if is_artifact:
-            # Replace with reference — stronger correction
-            filtered_signal[i:i + num_taps] = x
-        else:
-            # Lighter correction — stay close to original
-            blend_factor = 1 - trust_factor  # mostly original
-            filtered_signal[i:i + num_taps] = trust_factor * signal + blend_factor * x
-
-        # Stronger learning from clean signal
-        if not is_artifact:
-            w += mu * np.outer(trust_factor * e, x)
+        blend_factor = 1 - trust_factor
+        filtered_signal = trust_factor * signal + blend_factor * x
+        w += mu * np.outer(trust_factor * e, x)
 
     globals.w = w
     return filtered_signal
