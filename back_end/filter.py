@@ -53,9 +53,8 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
-               overlap_ratio=0.5,
-               trust_threshold=0.7):
-    """LMS filter with overlap between chunks for smoother transitions."""
+               overlap_ratio=0.5, trust_threshold=0.7):
+    """Adaptive LMS filter with artifact detection and overlap for smoother transitions."""
 
     global not_reading
 
@@ -70,39 +69,35 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
 
     n = len(noisy_signal)
     filtered_signal = np.zeros(n)
-    prev_filtered = np.zeros(overlap)  # stores last filtered overlap
+    prev_filtered = np.zeros(overlap)
 
     i = 0
     while i + num_taps <= n:
-        # Get current chunk with overlap
         signal = noisy_signal[i:i + num_taps]
         x = reference_signal[i:i + num_taps]
 
         y = np.dot(w, x)
         e = signal - y
 
+        # Trust factor based on signal amplitude similarity
         std_ratio = np.std(signal) / (np.std(x) + 1e-8)
         trust_factor = np.exp(-abs(np.log(std_ratio)))
-
-        # width_ratio = len(signal) / (np.count_nonzero(np.diff(np.sign(np.diff(signal)))) + 1e-8)
-        # ref_width = len(x) / (np.count_nonzero(np.diff(np.sign(np.diff(x)))) + 1e-8)
-        # width_score = np.exp(-abs(np.log(width_ratio / ref_width)))
-        #
-        # trust_factor = (amp_score * 3 + width_score) / 4
         print("trust_factor:", trust_factor)
 
         is_artifact = trust_factor < trust_threshold
-        #not_reading = is_artifact
+        not_reading = is_artifact
 
-        # Filtered output
+        # Output: trust signal when clean, fall back to model when artifact
         if is_artifact:
             filtered_chunk = y
         else:
-            blend_factor = 1 - trust_factor
-            filtered_chunk = trust_factor * signal + mu * blend_factor * x
-            w += mu * np.outer(trust_factor * e, x)
+            # Let the signal speak more than the model
+            filtered_chunk = signal
 
-        # Combine with previous overlap (for continuity)
+            # Learn only when clean: adapt weights toward minimizing the error
+            w += mu * np.outer(e, x)
+
+        # Blending for overlap
         if i == 0:
             filtered_signal[i:i + step] = filtered_chunk[:step]
         else:
@@ -110,9 +105,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
             filtered_signal[i:i + overlap] = blended
             filtered_signal[i + overlap:i + num_taps] = filtered_chunk[overlap:]
 
-        # Store current overlap for next round
         prev_filtered = filtered_chunk[-overlap:]
-
         i += step
 
     globals.w = w
