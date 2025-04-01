@@ -96,10 +96,10 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
 
         # Filtered output
         if is_artifact:
-            filtered_chunk = x
+            filtered_chunk = y
         else:
             blend_factor = 1 - trust_factor
-            filtered_chunk = trust_factor * signal + blend_factor * x
+            filtered_chunk = trust_factor * signal + blend_factor * y
             w += mu * np.outer(trust_factor * e, x)
 
         # Combine with previous overlap (for continuity)

@@ -23,7 +23,7 @@ def detect_peaks(signal, fps, std_multiplier=0.33):
     min_height = np.std(signal) * std_multiplier
 
     # Peak must still have some prominence
-    prominence = min_height * 0.4
+    prominence = min_height * 0.33
 
     peaks, properties = find_peaks(signal, height=min_height, distance=min_distance, prominence=prominence)
     return peaks
@@ -82,7 +82,7 @@ def ar_predict(target_time=10.0):
     model_fit = model.fit()
 
     # Predict more steps than needed (e.g., 16 steps)
-    num_steps = 16  # Arbitrary large number to exceed target_time
+    num_steps = 20  # Arbitrary large number to exceed target_time
     predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
 
     # Trim the prediction to exactly match target_time
