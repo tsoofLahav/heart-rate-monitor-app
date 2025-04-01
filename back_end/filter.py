@@ -53,7 +53,7 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 
 def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
-               overlap_ratio=0.5, trust_threshold=0.7):
+               overlap_ratio=0.5, trust_threshold=0.75):
     """Adaptive LMS filter with artifact detection and overlap for smoother transitions."""
 
     global not_reading
@@ -91,11 +91,9 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
         if is_artifact:
             filtered_chunk = x
         else:
-            # Let the signal speak more than the model
-            filtered_chunk = signal
-
-            # Learn only when clean: adapt weights toward minimizing the error
-            w += mu * np.outer(e, x)
+            # Use both LMS and signal in the output
+            filtered_chunk = trust_factor * signal + (1 - trust_factor) * y
+            w += mu * np.outer(e, x)  # still adapt weights
 
         # Blending for overlap
         if i == 0:
