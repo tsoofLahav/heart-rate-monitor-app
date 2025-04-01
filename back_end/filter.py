@@ -112,7 +112,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
 
     aligned_reference = match_reference_segment(filtered_signal, reference_signal)
 
-    # Step 2: Apply LMS filtering directly (no DTW)
+    # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal = lms_filter(filtered_signal, aligned_reference, fps=fs)
 
     return clean_signal.flatten(), filtered_signal.flatten(), not_reading, aligned_reference
