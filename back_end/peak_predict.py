@@ -67,14 +67,16 @@ def ar_predict(target_time=10.0):
     last_interval = intervals[-1]
     target_time = target_time + last_interval
 
-    n = int(math.sqrt(len(globals.past_intervals)))
+    n = int(math.sqrt(len(intervals)))
 
     # Remove first and last interval from training
-    intervals = intervals[:-1]
+    intervals = intervals[:-1]  # remove the last interval
+    if len(intervals) < 3:
+        return np.array([])  # not enough data to predict reliably
 
-    lags = min(n, len(intervals) - 1)  # Ensure at least 2 lags
+    n = int(math.sqrt(len(intervals)))
+    lags = min(n, len(intervals) - 2)  # ensure at least 2 more points than lags
 
-    # Train the model
     model = AutoReg(intervals, lags=lags)
     model_fit = model.fit()
 
