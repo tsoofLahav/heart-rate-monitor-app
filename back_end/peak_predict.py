@@ -3,7 +3,9 @@ from scipy.signal import find_peaks
 from statsmodels.tsa.ar_model import AutoReg
 import math
 import globals
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 
 def detect_peaks(signal, fps, std_multiplier=0.7):
     """
