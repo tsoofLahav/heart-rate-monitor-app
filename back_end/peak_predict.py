@@ -76,12 +76,13 @@ def ar_predict(target_time=10.0):
 
     n = int(math.sqrt(len(intervals)))
     lags = min(n, len(intervals) - 2)  # ensure at least 2 more points than lags
+    print(f"len(intervals): {len(intervals)}, lags: {lags}")
 
     model = AutoReg(intervals, lags=lags)
     model_fit = model.fit()
 
     # Predict more steps than needed (e.g., 16 steps)
-    num_steps = 20  # Arbitrary large number to exceed target_time
+    num_steps = 16  # Arbitrary large number to exceed target_time
     predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
 
     # Trim the prediction to exactly match target_time
