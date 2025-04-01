@@ -12,20 +12,18 @@ def detect_peaks(signal, fps, std_multiplier=0.33):
     signal = np.array(signal)
 
     if globals.average_gap:
-        min_distance = int(globals.average_gap * fps * 0.5)  # looser to allow fast changes
+        min_distance = int(globals.average_gap * fps * 0.7)  # looser to allow fast changes
     else:
-        min_distance = int(fps * 0.3)
+        min_distance = int(fps * 0.4)
 
     min_height = np.std(signal) * std_multiplier
     prominence = min_height * 0.33
-    min_width = fps * 0.1  # e.g., 100ms wide
 
     peaks, properties = find_peaks(
         signal,
         height=min_height,
         distance=min_distance,
         prominence=prominence,
-        width=min_width
     )
 
     return peaks

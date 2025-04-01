@@ -89,7 +89,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
 
         # Output: trust signal when clean, fall back to model when artifact
         if is_artifact:
-            filtered_chunk = y
+            filtered_chunk = x
         else:
             # Let the signal speak more than the model
             filtered_chunk = signal
