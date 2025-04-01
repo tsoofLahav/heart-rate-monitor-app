@@ -82,8 +82,10 @@ def ar_predict(target_time=10.0):
     model_fit = model.fit()
 
     # Predict more steps than needed (e.g., 16 steps)
-    num_steps = 20  # Arbitrary large number to exceed target_time
+    num_steps = 24  # Arbitrary large number to exceed target_time
     predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
+    print("Predicted intervals:", predicted_intervals)
+    print("Total predicted time:", np.sum(predicted_intervals))
 
     # Trim the prediction to exactly match target_time
     total_time = 0.0

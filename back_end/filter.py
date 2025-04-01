@@ -99,7 +99,7 @@ def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
             filtered_chunk = y
         else:
             blend_factor = 1 - trust_factor
-            filtered_chunk = trust_factor * signal + blend_factor * y
+            filtered_chunk = trust_factor * signal + mu * blend_factor * x
             w += mu * np.outer(trust_factor * e, x)
 
         # Combine with previous overlap (for continuity)
