@@ -11,7 +11,7 @@ from video_edit import process_video_frames
 import logging
 import numpy as np
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, force=True)
 
 
 def setup_video_route(app):

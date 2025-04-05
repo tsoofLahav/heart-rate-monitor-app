@@ -5,7 +5,7 @@ import math
 import globals
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, force=True)
 
 
 def detect_peaks(signal, fps, std_multiplier=0.33):
