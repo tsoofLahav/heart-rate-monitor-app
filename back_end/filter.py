@@ -155,6 +155,6 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal, not_reading = pattern_filter(filtered_signal, reference_signal, fps=fs)
 
-    globals.history = globals.history + clean_signal[:fs*5]
+    globals.history = np.concatenate(globals.history, clean_signal[:fs*5])
 
     return clean_signal.flatten(), filtered_signal.flatten(), not_reading
