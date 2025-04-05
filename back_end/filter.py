@@ -104,7 +104,7 @@ def pattern_filter(noisy_signal, reference_signal,
             not_reading = True
 
         if is_artifact:
-            predicted_chunk = predict_next_segment(globals.history + np.concatenate(output), batch_size)
+            predicted_chunk = predict_next_segment(np.concatenate((globals.history, np.concatenate(output))), batch_size)
             output.append(predicted_chunk)
 
     return np.concatenate(output), not_reading
