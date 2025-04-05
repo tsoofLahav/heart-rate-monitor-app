@@ -59,7 +59,7 @@ def setup_video_route(app):
                 with open("reference.txt", "r") as file:
                     reference_signal = ast.literal_eval(file.read())  # Convert string to list
 
-                clean_signal, filtered_signal, not_reading, aligned_reference = denoise_ppg(
+                clean_signal, filtered_signal, not_reading = denoise_ppg(
                     globals.concatenated_intensities, fps, reference_signal)
 
                 # handle not reading
@@ -77,7 +77,6 @@ def setup_video_route(app):
                     return jsonify({
                         'final': clean_signal.tolist(),
                         'filtered': filtered_signal.tolist(),
-                        'reference': aligned_reference.tolist(),
                         'time_stamps': time_stamps.tolist()
                     })
                 else:
