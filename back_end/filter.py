@@ -61,7 +61,7 @@ def pattern_filter(noisy_signal, reference_signal,
 
     batch_size = fps
     n = len(noisy_signal)
-    output = []
+    output = np.empty((0,), dtype=np.float32)
     artifact_streak = 0
     not_reading = False
 
@@ -84,14 +84,13 @@ def pattern_filter(noisy_signal, reference_signal,
         if not is_artifact:
             aligned_reference = match_reference_segment(signal_chunk, reference_signal)
 
-            # Cosine similarity (or correlation) as match score
             similarity = np.dot(signal_chunk, aligned_reference) / (
                 np.linalg.norm(signal_chunk) * np.linalg.norm(aligned_reference) + 1e-8)
 
             print(f"similarity[{i//batch_size}]:", similarity)
 
             if similarity >= match_threshold:
-                output.append(signal_chunk)
+                output = np.concatenate((output, signal_chunk))
                 artifact_streak = 0
                 continue
             else:
@@ -103,10 +102,11 @@ def pattern_filter(noisy_signal, reference_signal,
             not_reading = True
 
         if is_artifact:
-            predicted_chunk = predict_next_segment(np.concatenate((globals.history, np.concatenate(output))), batch_size)
-            output.append(predicted_chunk)
+            history_and_output = np.concatenate((globals.history, output)) if output.size > 0 else globals.history
+            predicted_chunk = predict_next_segment(history_and_output, batch_size)
+            output = np.concatenate((output, predicted_chunk))
 
-    return np.concatenate(output), not_reading
+    return output, not_reading
 
 
 def predict_next_segment(past_signal, num_samples):
