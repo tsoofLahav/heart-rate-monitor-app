@@ -60,48 +60,39 @@ def merge_intervals(intervals1, intervals2):
 def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
     intervals = globals.past_intervals
+
+    if len(intervals) < 5:
+        return np.array([])
+
     last_interval = intervals[-1]
-    target_time = target_time + last_interval
+    target_time += last_interval
 
-    n = int(math.sqrt(len(intervals)))
+    train_data = intervals[:-1]
+    max_lags = 20  # Good rule of thumb for ~20-step prediction
+    lags = min(max_lags, len(train_data) // 2)
 
-    # Remove first and last interval from training
-    intervals = intervals[:-1]  # remove the last interval
-    if len(intervals) < 3:
-        return np.array([])  # not enough data to predict reliably
-
-    n = int(math.sqrt(len(intervals)))
-    lags = min(n, len(intervals) - 2)  # ensure at least 2 more points than lags
-    print(f"len(intervals): {len(intervals)}, lags: {lags}")
-
-    model = AutoReg(intervals, lags=lags)
+    model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
 
-    # Predict more steps than needed (e.g., 16 steps)
-    num_steps = 24  # Arbitrary large number to exceed target_time
-    predicted_intervals = model_fit.predict(start=len(intervals), end=len(intervals) + num_steps - 1, dynamic=True)
-    print("Predicted intervals:", predicted_intervals)
-    print("Total predicted time:", np.sum(predicted_intervals))
+    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 20, dynamic=True)
 
-    # Trim the prediction to exactly match target_time
-    total_time = 0.0
+    total = 0.0
     index = 0
-
-    while total_time + predicted_intervals[index] < target_time:
-        total_time += predicted_intervals[index]
+    while index < len(predicted) and total + predicted[index] < target_time:
+        total += predicted[index]
         index += 1
 
-    predicted_intervals = predicted_intervals[:index]
-    predicted_intervals = np.append(predicted_intervals, target_time - total_time)
+    result = predicted[:index]
+    if index < len(predicted):
+        result = np.append(result, target_time - total)
 
-    if predicted_intervals[0] - last_interval <= 0:
-        last_interval = last_interval - predicted_intervals[0]
-        predicted_intervals = predicted_intervals[1:]
-        predicted_intervals[0] = predicted_intervals[0] - last_interval
-    else:
-        predicted_intervals[0] = predicted_intervals[0] - last_interval
+    # Adjust first interval
+    result[0] -= last_interval
+    if result[0] <= 0 and len(result) > 1:
+        result = result[1:]
+        result[0] -= last_interval
 
-    return np.array(predicted_intervals)
+    return np.array(result)
 
 
 def split_intervals_last5sec(intervals, target_time=5.0):
