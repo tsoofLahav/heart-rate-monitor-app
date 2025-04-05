@@ -4,6 +4,7 @@ from scipy.signal import correlate
 from scipy.interpolate import interp1d
 import numpy as np
 import globals
+from statsmodels.tsa.ar_model import AutoReg
 
 not_reading = False
 logging.basicConfig(level=logging.DEBUG)
@@ -52,64 +53,87 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
     return best_segment
 
 
-def lms_filter(noisy_signal, reference_signal, mu=0.08, fps=24,
-               overlap_ratio=0.5, trust_threshold=0.65, alpha=0.25):
-    """Adaptive LMS filter with artifact detection and overlap for smoother transitions."""
+def pattern_filter(noisy_signal, reference_signal,
+                   fps=24, trust_threshold=0.65, match_threshold=0.65):
+    """
+    Filters signal in 1-second chunks using pattern matching and prediction.
+    Returns output and not_reading flag if 5 artifacts are detected in a row.
+    """
 
-    global not_reading
-
-    num_taps = fps
-    overlap = int(num_taps * overlap_ratio)
-    step = num_taps - overlap
-
-    if globals.w is None:
-        w = np.zeros((num_taps, num_taps))
-    else:
-        w = globals.w
-
+    batch_size = fps
     n = len(noisy_signal)
-    filtered_signal = np.zeros(n)
-    prev_filtered = np.zeros(overlap)
+    output = []
+    artifact_streak = 0
+    not_reading = False
 
-    i = 0
-    while i + num_taps <= n:
-        signal = noisy_signal[i:i + num_taps]
-        x = reference_signal[i:i + num_taps]
+    reference_std = np.std(reference_signal) + 1e-8  # fixed std
 
-        y = np.dot(w, x)
-        e = signal - y
+    for i in range(0, n, batch_size):
+        if i + batch_size > n:
+            break  # skip incomplete batch
 
-        # Trust factor based on signal amplitude similarity
-        std_ratio = np.std(signal) / (np.std(x) + 1e-8)
+        signal_chunk = noisy_signal[i:i + batch_size]
+
+        # 1. Check trust by std ratio
+        std_ratio = np.std(signal_chunk) / reference_std
         trust_factor = np.exp(-abs(np.log(std_ratio)))
-        print("trust_factor:", trust_factor)
+        print(f"trust_factor[{i//batch_size}]:", trust_factor)
 
         is_artifact = trust_factor < trust_threshold
 
-        # Output: trust signal when clean, fall back to model when artifact
+        # 2. If std is fine, check structural match
+        if not is_artifact:
+            aligned_reference = match_reference_segment(signal_chunk, reference_signal)
+
+            # Cosine similarity (or correlation) as match score
+            similarity = np.dot(signal_chunk, aligned_reference) / (
+                np.linalg.norm(signal_chunk) * np.linalg.norm(aligned_reference) + 1e-8)
+
+            print(f"similarity[{i//batch_size}]:", similarity)
+
+            if similarity >= match_threshold:
+                output.append(signal_chunk)
+                artifact_streak = 0
+                continue
+            else:
+                is_artifact = True
+
+        # 3. Handle artifact
+        artifact_streak += 1
+        if artifact_streak >= 5:
+            not_reading = True
+
         if is_artifact:
-            filtered_chunk = x
-        else:
-            # Use both LMS and signal in the output
-            filtered_chunk = (1 - alpha) * trust_factor * signal + alpha * (1 - trust_factor) * x
-            w += mu * np.outer(e, x)  # still adapt weights
+            predicted_chunk = predict_next_segment(globals.history + np.concatenate(output), batch_size)
+            output.append(predicted_chunk)
 
-        # Blending for overlap
-        if i == 0:
-            filtered_signal[i:i + step] = filtered_chunk[:step]
-        else:
-            blended = 0.5 * prev_filtered + 0.5 * filtered_chunk[:overlap]
-            filtered_signal[i:i + overlap] = blended
-            filtered_signal[i + overlap:i + num_taps] = filtered_chunk[overlap:]
+    return np.concatenate(output), not_reading
 
-        prev_filtered = filtered_chunk[-overlap:]
-        i += step
 
-    globals.w = w
-    return filtered_signal
+def predict_next_segment(past_signal, num_samples):
+    """
+    Predict the next segment using global history + past signal/prediction.
+    """
+
+    full_signal = np.concatenate((globals.history, np.array(past_signal)))
+
+    if len(full_signal) < 24:
+        return np.zeros(num_samples)
+
+    lags = min(len(full_signal) - 2, int(num_samples * 0.75))
+
+    try:
+        model = AutoReg(full_signal, lags=lags, old_names=False)
+        model_fit = model.fit()
+        prediction = model_fit.predict(start=len(full_signal), end=len(full_signal) + num_samples - 1, dynamic=True)
+        return prediction
+    except Exception as e:
+        print("[AR prediction error]:", e)
+        return np.zeros(num_samples)
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
+    global not_reading
     """Denoises PPG using LMS filtering without DTW."""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
@@ -126,9 +150,11 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
-    aligned_reference = match_reference_segment(filtered_signal, reference_signal)
+    reference_signal = reference_signal[:fs*5]
 
     # Step 2: Apply LMS filtering directly (no DTW).
-    clean_signal = lms_filter(filtered_signal, aligned_reference, fps=fs)
+    clean_signal, not_reading = pattern_filter(filtered_signal, reference_signal, fps=fs)
 
-    return clean_signal.flatten(), filtered_signal.flatten(), not_reading, aligned_reference
+    globals.history = globals.history + clean_signal[:fs*5]
+
+    return clean_signal.flatten(), filtered_signal.flatten(), not_reading

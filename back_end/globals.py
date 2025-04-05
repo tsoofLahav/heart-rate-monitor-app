@@ -5,3 +5,4 @@ list_intervals_lists = []
 w = None
 base_factor = None
 average_gap = None
+history = []
