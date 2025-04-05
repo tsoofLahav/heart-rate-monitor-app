@@ -10,8 +10,14 @@ import globals
 from video_edit import process_video_frames
 import logging
 import numpy as np
+import sys
 
-logging.basicConfig(level=logging.DEBUG, force=True)
+logging.basicConfig(
+    level=logging.DEBUG,
+    stream=sys.stdout,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    force=True
+)
 
 
 def setup_video_route(app):
@@ -94,5 +100,5 @@ def setup_video_route(app):
 #                 })
 
         except Exception as e:
-            logging.error("Error processing PPG:\n%s", traceback.format_exc())
+            logging.exception("Unhandled exception:")
             return jsonify({'server_error': True}), 500

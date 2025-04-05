@@ -7,7 +7,6 @@ import globals
 from statsmodels.tsa.ar_model import AutoReg
 
 not_reading = False
-logging.basicConfig(level=logging.DEBUG, force=True)
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
