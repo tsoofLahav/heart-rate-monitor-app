@@ -65,9 +65,8 @@ def ar_predict(target_time=10.0):
     target_time += last_interval
 
     train_data = intervals[:-1]
-    lags = min(20, len(train_data) // 2)  # Good rule of thumb for ~20-step prediction
-    if len(train_data) <= lags:
-        return None
+    lags = min(20, len(train_data) // 2 - 1)  # Good rule of thumb for ~20-step prediction
+
     print("Training data:" + str(len(train_data)))
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
@@ -138,10 +137,7 @@ def process_peaks(filtered_signal, fps):
     # **Predict next slightly over 10s**
     predicted_intervals = ar_predict(target_time=10)
 
-    if predicted_intervals is None:
-        x4_intervals = []
-    else:
-        x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
+    x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
     # **Trim predicted intervals into 5s chunks**
 
     return intervals, x4_intervals
