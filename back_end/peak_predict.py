@@ -68,8 +68,9 @@ def ar_predict(target_time=10.0):
     target_time += last_interval
 
     train_data = intervals[:-1]
-    max_lags = 20  # Good rule of thumb for ~20-step prediction
-    lags = min(max_lags, len(train_data) // 2)
+    lags = 20  # Good rule of thumb for ~20-step prediction
+    if len(train_data) <= lags:
+        return np.array([])
 
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
