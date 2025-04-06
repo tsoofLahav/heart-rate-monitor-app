@@ -68,7 +68,7 @@ def ar_predict(target_time=10.0):
     lags = 20  # Good rule of thumb for ~20-step prediction
     if len(train_data) <= lags:
         return None
-
+    print("Training data:" + str(len(train_data)))
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
 
