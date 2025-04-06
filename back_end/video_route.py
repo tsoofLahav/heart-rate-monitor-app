@@ -12,12 +12,7 @@ import logging
 import numpy as np
 import sys
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    stream=sys.stdout,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    force=True
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s", force=True)
 
 
 def setup_video_route(app):
