@@ -61,16 +61,13 @@ def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
     intervals = globals.past_intervals
 
-    if len(intervals) < 5:
-        return None
-
     last_interval = intervals[-1]
     target_time += last_interval
 
     train_data = intervals[:-1]
     lags = 20  # Good rule of thumb for ~20-step prediction
     if len(train_data) <= lags:
-        return np.array([])
+        return None
 
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
