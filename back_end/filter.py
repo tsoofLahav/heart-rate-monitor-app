@@ -6,8 +6,6 @@ import numpy as np
 import globals
 from statsmodels.tsa.ar_model import AutoReg
 
-not_reading = False
-
 
 def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
     """Applies a band-pass filter using second-order sections (SOS) for stability."""
@@ -132,7 +130,6 @@ def predict_next_segment(past_signal, num_samples):
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
-    global not_reading
     """Denoises PPG using LMS filtering without DTW."""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
@@ -154,6 +151,9 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal, not_reading = pattern_filter(filtered_signal, reference_signal, fps=fs)
 
-    globals.history = np.concatenate((globals.history, clean_signal[:fs * 5]))
+    if len(globals.history) < 300:
+        globals.history = np.concatenate((globals.history, clean_signal[:fs * 5]))
+    else:
+        globals.history = np.concatenate((globals.history[-180:], clean_signal[:fs * 5]))
 
     return clean_signal.flatten(), filtered_signal.flatten(), not_reading

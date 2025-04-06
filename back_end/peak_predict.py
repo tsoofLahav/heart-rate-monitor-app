@@ -59,13 +59,13 @@ def merge_intervals(intervals1, intervals2):
 
 def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
-    intervals = globals.past_intervals
+    intervals = globals.past_intervals[-300:]
 
     last_interval = intervals[-1]
     target_time += last_interval
 
     train_data = intervals[:-1]
-    lags = 20  # Good rule of thumb for ~20-step prediction
+    lags = min(20, len(train_data) // 2)  # Good rule of thumb for ~20-step prediction
     if len(train_data) <= lags:
         return None
     print("Training data:" + str(len(train_data)))
