@@ -62,7 +62,7 @@ def ar_predict(target_time=10.0):
     intervals = globals.past_intervals
 
     if len(intervals) < 5:
-        return np.array([])
+        return None
 
     last_interval = intervals[-1]
     target_time += last_interval
@@ -141,7 +141,7 @@ def process_peaks(filtered_signal, fps):
     # **Predict next slightly over 10s**
     predicted_intervals = ar_predict(target_time=10)
 
-    if predicted_intervals is []:
+    if predicted_intervals is None:
         x4_intervals = []
     else:
         x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
