@@ -141,8 +141,11 @@ def process_peaks(filtered_signal, fps):
     # **Predict next slightly over 10s**
     predicted_intervals = ar_predict(target_time=10)
 
+    if predicted_intervals is []:
+        x4_intervals = []
+    else:
+        x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
     # **Trim predicted intervals into 5s chunks**
-    x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
 
-    return intervals, x4_intervals  # Return x4 to main page
+    return intervals, x4_intervals
 
