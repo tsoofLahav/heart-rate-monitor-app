@@ -59,13 +59,16 @@ def merge_intervals(intervals1, intervals2):
 
 def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
-    intervals = globals.past_intervals[-300:]
+    if len(globals.past_intervals > 300):
+        intervals = globals.past_intervals[-300:]
+    else:
+        intervals = globals.past_intervals
 
     last_interval = intervals[-1]
     target_time += last_interval
 
     train_data = intervals[:-1]
-    lags = min(20, len(train_data) // 2 - 1)  # Good rule of thumb for ~20-step prediction
+    lags = min(20, len(train_data) // 2 - 1)
 
     print("Training data:" + str(len(train_data)))
     model = AutoReg(train_data, lags=lags, old_names=False)
@@ -88,7 +91,7 @@ def ar_predict(target_time=10.0):
     if result[0] <= 0 and len(result) > 1:
         result = result[1:]
         result[0] -= last_interval
-
+    print("prediction:" + str(result))
     return np.array(result)
 
 
@@ -120,8 +123,6 @@ def split_intervals_last5sec(intervals, target_time=5.0):
 def process_peaks(filtered_signal, fps):
     """Process 15s filtered signal, detect peaks, predict next intervals, and return x4."""
 
-    # Convert to time
-    segment_length = 5.0  # Fixed at 5s
     total_length = 15.0  # Full signal
 
     # Detect peaks and convert to intervals
