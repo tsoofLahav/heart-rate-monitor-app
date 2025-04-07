@@ -12,7 +12,14 @@ import logging
 import numpy as np
 import sys
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s", force=True)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True
+)
+
+logger = logging.getLogger(__name__)
 
 
 def setup_video_route(app):
@@ -93,5 +100,5 @@ def setup_video_route(app):
 #                 })
 
         except Exception as e:
-            logging.exception("Unhandled exception:")
+            logger.error("Unhandled exception:")
             return jsonify({'server_error': True}), 500
