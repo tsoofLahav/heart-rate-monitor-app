@@ -59,8 +59,8 @@ def merge_intervals(intervals1, intervals2):
 
 def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time."""
-    if len(globals.past_intervals) > 300:
-        intervals = globals.past_intervals[-300:]
+    if len(globals.past_intervals) > 60:
+        intervals = globals.past_intervals[-60:]
     else:
         intervals = globals.past_intervals
 
@@ -70,7 +70,7 @@ def ar_predict(target_time=10.0):
 
     if len(train_data) <= 5:
         return None
-    lags = min(14, (len(train_data) // 2) - 1)
+    lags = min(8, (len(train_data) // 2) - 1)
 
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()

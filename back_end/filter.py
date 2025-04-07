@@ -114,7 +114,7 @@ def predict_next_segment(past_signal, num_samples):
     if len(full_signal) < 24:
         return np.zeros(num_samples)
 
-    lags = min(len(full_signal) - 2, int(num_samples * 0.75))
+    lags = min(len(full_signal) - 2, int(num_samples * 0.5))
 
     try:
         model = AutoReg(full_signal, lags=lags, old_names=False)
