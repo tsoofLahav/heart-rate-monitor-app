@@ -21,7 +21,7 @@ def detect_peaks(signal, fps, std_multiplier=0.33):
         height=min_height,
         distance=min_distance
     )
-
+    print(f"peaks:", str(peaks))
     return peaks
 
 
@@ -42,6 +42,7 @@ def compute_intervals(peaks, segment_length, fps):
     # Last interval correction (from last peak to the end)
     last_interval = (segment_length - (peaks[-1] / fps))   # From last peak to segment end
     intervals.append(last_interval)
+    print(f"intervals:", str(intervals))
 
     return intervals
 
