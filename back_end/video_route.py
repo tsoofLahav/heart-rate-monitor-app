@@ -66,7 +66,7 @@ def setup_video_route(app):
 # ############ part 4: peak detection and learning ###################
                 intervals, predicted_intervals = process_peaks(clean_signal, fps)
                 time_stamps = np.arange(len(clean_signal)) / fps
-                if globals.round_count < 6:
+                if globals.round_count < 4:
                     globals.list_intervals_lists.append(predicted_intervals)
                     # Return processed data as a JSON response
                     return jsonify({

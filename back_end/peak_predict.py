@@ -68,7 +68,7 @@ def ar_predict(target_time=10.0):
     target_time += last_interval
     train_data = intervals[:-1]
 
-    if len(train_data) <= 20:
+    if len(train_data) <= 5:
         return None
     lags = min(20, (len(train_data) // 2) - 1)
 
