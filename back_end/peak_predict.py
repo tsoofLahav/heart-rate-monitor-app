@@ -68,14 +68,14 @@ def ar_predict(target_time=10.0):
     target_time += last_interval
     train_data = intervals[:-1]
 
-    if len(train_data) <= 32:
+    if len(train_data) <= 20:
         return None
     lags = min(20, (len(train_data) // 2) - 1)
 
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
 
-    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 16, dynamic=True)
+    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 20, dynamic=True)
 
     total = 0.0
     index = 0

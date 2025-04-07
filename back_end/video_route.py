@@ -10,16 +10,9 @@ import globals
 from video_edit import process_video_frames
 import logging
 import numpy as np
-import sys
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-    force=True
-)
 
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s", force=True)
 
 
 def setup_video_route(app):
@@ -100,5 +93,5 @@ def setup_video_route(app):
 #                 })
 
         except Exception as e:
-            logger.error("Unhandled exception:")
+            logging.exception("Unhandled exception:")
             return jsonify({'server_error': True}), 500
