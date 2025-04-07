@@ -75,6 +75,7 @@ def setup_video_route(app):
                         'time_stamps': time_stamps.tolist()
                     })
                 else:
+                    globals.list_intervals_lists.append(predicted_intervals)
                     concatenated_intervals = merge_intervals(globals.list_intervals_lists[-2],
                                                              globals.list_intervals_lists[-1])
                     # Return processed data as a JSON response
