@@ -41,11 +41,11 @@ def setup_video_route(app):
             segment_length = int(5 * fps)
 
             globals.round_count += 1
-            if globals.round_count < 3:
+            if globals.round_count == 1:
                 globals.concatenated_intensities.extend(intensities)
                 return jsonify({'loading': True})
             else:
-                if globals.round_count == 3:
+                if globals.round_count == 2:
                     globals.concatenated_intensities.extend(intensities)
                 else:
                     globals.concatenated_intensities = globals.concatenated_intensities[segment_length:] + intensities
@@ -75,8 +75,7 @@ def setup_video_route(app):
                         'time_stamps': time_stamps.tolist()
                     })
                 else:
-                    concatenated_intervals = merge_intervals(globals.list_intervals_lists[-3], globals.list_intervals_lists[-2])
-                    concatenated_intervals = merge_intervals(concatenated_intervals,
+                    concatenated_intervals = merge_intervals(globals.list_intervals_lists[-2],
                                                              globals.list_intervals_lists[-1])
                     # Return processed data as a JSON response
                     return jsonify({

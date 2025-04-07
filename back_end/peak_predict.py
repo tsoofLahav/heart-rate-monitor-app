@@ -58,44 +58,52 @@ def merge_intervals(intervals1, intervals2):
 
 
 def ar_predict(target_time=10.0):
-    """Predict ~10 seconds of intervals, continuing smoothly from past_intervals."""
-    intervals = globals.past_intervals
-    if len(intervals) < 5:
-        return None  # not enough data
+    """Predicts intervals until total sum reaches or slightly exceeds target_time."""
+    if len(globals.past_intervals) > 300:
+        intervals = globals.past_intervals[-300:]
+    else:
+        intervals = globals.past_intervals
 
-    # Remove possibly cut last interval from training
-    train_data = intervals[:-1]
+    logging.debug("Past intervals length: %d", len(intervals))
+    logging.debug("Past intervals: %s", intervals)
+
     last_interval = intervals[-1]
+    target_time += last_interval
+    train_data = intervals[:-1]
 
-    # Use dynamic lag (e.g. max 20, or half of training)
-    lags = min(20, len(train_data) // 2)
-    if len(train_data) <= lags:
+    if len(train_data) <= 20:
+        logging.warning("Not enough train data to fit model. Returning None.")
         return None
+    lags = min(20, (len(train_data) // 2) - 1)
 
-    # Fit AR model
+    logging.debug("Train data length: %d", len(train_data))
+    logging.debug("Using lags: %d", lags)
+
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
 
-    # Predict more than enough (e.g. 20 steps)
-    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 19, dynamic=True)
+    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 20, dynamic=True)
+    logging.debug("Predicted intervals: %s", predicted)
 
-    # Trim to reach ~10s
-    result = []
     total = 0.0
-    for val in predicted:
-        if total + val >= target_time:
-            result.append(target_time - total)
-            break
-        result.append(val)
-        total += val
+    index = 0
+    while index < len(predicted) and total + predicted[index] < target_time:
+        total += predicted[index]
+        index += 1
 
-    # Smooth continuation from last interval
-    if result:
-        result[0] = result[0] - last_interval
-        if result[0] <= 0 and len(result) > 1:
-            result = result[1:]
-            result[0] -= last_interval
+    result = predicted[:index]
+    if index < len(predicted):
+        result = np.append(result, target_time - total)
 
+    logging.debug("Summed result before adjustment: %s", result)
+
+    # Adjust first interval
+    result[0] -= last_interval
+    if result[0] <= 0 and len(result) > 1:
+        result = result[1:]
+        result[0] -= last_interval
+
+    logging.debug("Final predicted result: %s", result)
     return np.array(result)
 
 
