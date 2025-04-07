@@ -64,26 +64,18 @@ def ar_predict(target_time=10.0):
     else:
         intervals = globals.past_intervals
 
-    logging.debug("Past intervals length: %d", len(intervals))
-    logging.debug("Past intervals: %s", intervals)
-
     last_interval = intervals[-1]
     target_time += last_interval
     train_data = intervals[:-1]
 
-    if len(train_data) <= 20:
-        logging.warning("Not enough train data to fit model. Returning None.")
+    if len(train_data) <= 32:
         return None
     lags = min(20, (len(train_data) // 2) - 1)
-
-    logging.debug("Train data length: %d", len(train_data))
-    logging.debug("Using lags: %d", lags)
 
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
 
-    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 20, dynamic=True)
-    logging.debug("Predicted intervals: %s", predicted)
+    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 16, dynamic=True)
 
     total = 0.0
     index = 0
@@ -95,21 +87,17 @@ def ar_predict(target_time=10.0):
     if index < len(predicted):
         result = np.append(result, target_time - total)
 
-    logging.debug("Summed result before adjustment: %s", result)
-
     # Adjust first interval
     result[0] -= last_interval
     if result[0] <= 0 and len(result) > 1:
         result = result[1:]
         result[0] -= last_interval
 
-    logging.debug("Final predicted result: %s", result)
     return np.array(result)
 
 
 def split_intervals_last5sec(intervals, target_time=5.0):
     total_time = sum(intervals)
-    logging.debug("Splitting intervals. Total time: %.3f, target time: %.3f", total_time, target_time)
 
     if total_time < target_time:
         raise ValueError("Total time is less than target_time for the second part.")
@@ -128,7 +116,6 @@ def split_intervals_last5sec(intervals, target_time=5.0):
             chunk1 = intervals[:len(intervals) - i - 1] + [interval - remaining_time]
             break
 
-    logging.debug("Split result: chunk1=%s, chunk2=%s", chunk1, chunk2)
     return np.array(chunk1), np.array(chunk2)
 
 
@@ -137,8 +124,6 @@ def process_peaks(filtered_signal, fps):
     peaks = detect_peaks(filtered_signal, fps)
     intervals = compute_intervals(peaks, total_length, fps)
 
-    logging.debug("Detected intervals: %s", intervals)
-
     if globals.past_intervals is None:
         globals.past_intervals = intervals[1:]
     else:
@@ -146,10 +131,8 @@ def process_peaks(filtered_signal, fps):
         globals.past_intervals = merge_intervals(globals.past_intervals, x2_intervals)
 
     predicted_intervals = ar_predict(target_time=10)
-    logging.debug("Full predicted intervals: %s", predicted_intervals)
 
     x3_intervals, x4_intervals = split_intervals_last5sec(predicted_intervals)
-    logging.debug("Final x4_intervals: %s", x4_intervals)
 
     return intervals, x4_intervals
 
