@@ -87,12 +87,13 @@ def ar_predict(target_time=10.0):
     if index < len(predicted):
         result = np.append(result, target_time - total)
 
+    print(f"results:", str(result))
     # Adjust first interval
     result[0] -= last_interval
     if result[0] <= 0 and len(result) > 1:
         result = result[1:]
         result[0] -= last_interval
-
+    print(f"results_after:", str(result))
     return np.array(result)
 
 
@@ -120,14 +121,13 @@ def split_intervals_last5sec(intervals, target_time=5.0):
 
 
 def process_peaks(filtered_signal, fps):
-    total_length = 15.0
     peaks = detect_peaks(filtered_signal, fps)
-    intervals = compute_intervals(peaks, total_length, fps)
+    intervals = compute_intervals(peaks, 10, fps)
 
     if globals.past_intervals is None:
         globals.past_intervals = intervals[1:]
     else:
-        x0x1_intervals, x2_intervals = split_intervals_last5sec(intervals)
+        x1_intervals, x2_intervals = split_intervals_last5sec(intervals)
         globals.past_intervals = merge_intervals(globals.past_intervals, x2_intervals)
 
     predicted_intervals = ar_predict(target_time=10)
