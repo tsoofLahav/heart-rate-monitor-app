@@ -70,7 +70,7 @@ def ar_predict(target_time=10.0):
 
     if len(train_data) <= 5:
         return None
-    lags = min(10, (len(train_data) // 2) - 1)
+    lags = min(14, (len(train_data) // 2) - 1)
 
     model = AutoReg(train_data, lags=lags, old_names=False)
     model_fit = model.fit()
