@@ -42,7 +42,6 @@ def compute_intervals(peaks, segment_length, fps):
     # Last interval correction (from last peak to the end)
     last_interval = (segment_length - (peaks[-1] / fps))   # From last peak to segment end
     intervals.append(last_interval)
-    print(f"intervals:", str(intervals))
 
     return intervals
 
@@ -88,13 +87,11 @@ def ar_predict(target_time=10.0):
     if index < len(predicted):
         result = np.append(result, target_time - total)
 
-    print(f"results:", str(result))
     # Adjust first interval
     result[0] -= last_interval
     if result[0] <= 0 and len(result) > 1:
         result = result[1:]
         result[0] -= last_interval
-    print(f"results_after:", str(result))
     return np.array(result)
 
 
@@ -124,7 +121,7 @@ def split_intervals_last5sec(intervals, target_time=5.0):
 def process_peaks(filtered_signal, fps):
     peaks = detect_peaks(filtered_signal, fps)
     intervals = compute_intervals(peaks, 10, fps)
-
+    print(f"intervals:", str(intervals))
     if globals.past_intervals is None:
         globals.past_intervals = intervals[1:]
     else:
