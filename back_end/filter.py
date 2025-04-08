@@ -2,6 +2,7 @@ from scipy.signal import butter, sosfiltfilt
 from scipy.interpolate import interp1d
 import numpy as np
 import globals
+from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.ar_model import AutoReg
 from sklearn.linear_model import LinearRegression
 
@@ -86,74 +87,30 @@ def pattern_filter(noisy_signal, reference_signal,
             not_reading = True
 
         if is_artifact:
-            if output.shape[0] >= 25:
-                predicted_chunk = lstm_predict_next_segment(output, batch_size)
-            else:
-                if globals.last_chunk is not None:
-                    predicted_chunk = lstm_predict_next_segment(globals.last_chunk, batch_size)
-                else:
-                    predicted_chunk = np.zeros(batch_size)
+            history_input = np.concatenate((globals.history, output))[-100:]  # Use last 100 points for context
+            predicted_chunk = lstm_predict_next_segment(history_input, batch_size)
             output = np.concatenate((output, predicted_chunk))
 
-    if output.shape[0] >= 25:
-        lstm_train_and_store_weights(output)
     return output, not_reading
 
 
-def lstm_predict_next_segment(output, length, window_size=24):
-    # Prepare training data
-    X, y = [], []
-    for i in range(len(output) - window_size):
-        X.append(output[i:i + window_size])
-        y.append(output[i + window_size])
-    X = np.array(X)
-    y = np.array(y)
+def lstm_predict_next_segment(history, length):
+    """
+    Predicts the next `length` signal points using ARIMA.
+    This replaces the previous LinearRegression approximation of LSTM.
+    """
+    history = np.array(history[-100:], dtype=np.float32)
+    if len(history) < 25:
+        return np.zeros(length)
 
-    # Use saved weights as initialization, or random if none
-    w = globals.w if globals.w is not None else np.random.randn(window_size)
-    b = globals.b if globals.b is not None else np.random.randn()
-
-    # Train new weights on current output (do not overwrite globals)
-    X_bias = np.hstack([X, np.ones((X.shape[0], 1))])
-    w_full = np.linalg.pinv(X_bias) @ y
-    w_temp = w_full[:-1]
-    b_temp = w_full[-1]
-
-    # Predict using trained weights
-    predictions = []
-    input_seq = output[-window_size:].tolist()
-    for _ in range(length):
-        next_val = np.dot(w_temp, input_seq) + b_temp
-        predictions.append(next_val)
-        input_seq.pop(0)
-        input_seq.append(next_val)
-
-    return np.array(predictions)
-
-
-def lstm_train_and_store_weights(output, window_size=24):
-    if len(output) <= window_size:
-        return
-
-    X = []
-    y = []
-    for i in range(len(output) - window_size):
-        X.append(output[i:i + window_size])
-        y.append(output[i + window_size])
-    X = np.array(X)
-    y = np.array(y)
-
-    X_bias = np.hstack([X, np.ones((X.shape[0], 1))])
-
-    # If no previous weights, initialize randomly
-    if globals.w is None or globals.b is None:
-        globals.w = np.random.randn(window_size)
-        globals.b = np.random.randn()
-
-    # Least squares fit (this overwrites the initialized ones)
-    w_full = np.linalg.pinv(X_bias) @ y
-    globals.w = w_full[:-1]
-    globals.b = w_full[-1]
+    try:
+        model = ARIMA(history, order=(3, 1, 2))  # (p,d,q) can be tuned
+        model_fit = model.fit()
+        forecast = model_fit.forecast(steps=length)
+        return np.array(forecast)
+    except Exception as e:
+        print("ARIMA prediction failed:", e)
+        return np.zeros(length)
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
