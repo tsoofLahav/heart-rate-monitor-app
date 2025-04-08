@@ -66,14 +66,14 @@ def pattern_filter(noisy_signal, reference_signal,
         signal_chunk = noisy_signal[i:i + batch_size]
         std_ratio = np.std(signal_chunk) / reference_std
         trust_factor = np.exp(-abs(np.log(std_ratio)))
-
+        print("Trust factor: ", trust_factor)
         is_artifact = trust_factor < trust_threshold
 
         if not is_artifact:
             aligned_reference = match_reference_segment(signal_chunk, reference_signal)
             similarity = np.dot(signal_chunk, aligned_reference) / (
                 np.linalg.norm(signal_chunk) * np.linalg.norm(aligned_reference) + 1e-8)
-
+            print("Similarity: ", similarity)
             if similarity >= match_threshold:
                 output = np.concatenate((output, signal_chunk))
                 artifact_streak = 0
