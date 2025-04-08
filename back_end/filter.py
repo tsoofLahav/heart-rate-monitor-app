@@ -82,68 +82,78 @@ def pattern_filter(noisy_signal, reference_signal,
                 is_artifact = True
 
         artifact_streak += 1
-        if artifact_streak >= 5:
+        if artifact_streak >= 3:
             not_reading = True
 
         if is_artifact:
-            history_input = np.concatenate((globals.history, output))[-100:]  # Use last 100 points for context
-            predicted_chunk = lstm_predict_next_segment(history_input, batch_size)
+            if output.shape[0] >= 25:
+                predicted_chunk = lstm_predict_next_segment(output, batch_size)
+            else:
+                if globals.last_chunk is not None:
+                    predicted_chunk = lstm_predict_next_segment(globals.last_chunk, batch_size)
+                else:
+                    predicted_chunk = np.zeros(batch_size)
             output = np.concatenate((output, predicted_chunk))
 
+    if output.shape[0] >= 25:
+        lstm_train_and_store_weights(output)
     return output, not_reading
 
 
-def lstm_predict_next_segment(history, length):
-    """
-    Predicts the next `length` signal points using simple linear regression over past values.
-    This is a lightweight approximation of LSTM behavior.
-    """
-    history = np.array(history[-100:], dtype=np.float32)
-    if len(history) < 25:
-        return np.zeros(length)
-
-    window_size = 24
+def lstm_predict_next_segment(output, length, window_size=24):
+    # Prepare training data
     X, y = [], []
-    for i in range(len(history) - window_size):
-        X.append(history[i:i + window_size])
-        y.append(history[i + window_size])
+    for i in range(len(output) - window_size):
+        X.append(output[i:i + window_size])
+        y.append(output[i + window_size])
+    X = np.array(X)
+    y = np.array(y)
 
-    model = LinearRegression()
-    model.fit(X, y)
+    # Use saved weights as initialization, or random if none
+    w = globals.w if globals.w is not None else np.random.randn(window_size)
+    b = globals.b if globals.b is not None else np.random.randn()
 
-    prediction_input = history[-window_size:].tolist()
+    # Train new weights on current output (do not overwrite globals)
+    X_bias = np.hstack([X, np.ones((X.shape[0], 1))])
+    w_full = np.linalg.pinv(X_bias) @ y
+    w_temp = w_full[:-1]
+    b_temp = w_full[-1]
+
+    # Predict using trained weights
     predictions = []
+    input_seq = output[-window_size:].tolist()
     for _ in range(length):
-        next_val = model.predict([prediction_input])[
-            0
-        ]  # predict returns array
+        next_val = np.dot(w_temp, input_seq) + b_temp
         predictions.append(next_val)
-        prediction_input.pop(0)
-        prediction_input.append(next_val)
+        input_seq.pop(0)
+        input_seq.append(next_val)
 
     return np.array(predictions)
 
 
-def predict_next_segment(past_signal, num_samples):
-    """
-    Predict the next segment using global history + past signal/prediction.
-    """
+def lstm_train_and_store_weights(output, window_size=24):
+    if len(output) <= window_size:
+        return
 
-    full_signal = np.concatenate((globals.history, np.array(past_signal)))
+    X = []
+    y = []
+    for i in range(len(output) - window_size):
+        X.append(output[i:i + window_size])
+        y.append(output[i + window_size])
+    X = np.array(X)
+    y = np.array(y)
 
-    if len(full_signal) < 24:
-        return np.zeros(num_samples)
+    X_bias = np.hstack([X, np.ones((X.shape[0], 1))])
 
-    lags = min(len(full_signal) - 2, int(num_samples * 0.5))
+    # If no previous weights, initialize randomly
+    if globals.w is None or globals.b is None:
+        globals.w = np.random.randn(window_size)
+        globals.b = np.random.randn()
 
-    try:
-        model = AutoReg(full_signal, lags=lags, old_names=False)
-        model_fit = model.fit()
-        prediction = model_fit.predict(start=len(full_signal), end=len(full_signal) + num_samples - 1, dynamic=True)
-        return prediction
-    except Exception as e:
-        print("[AR prediction error]:", e)
-        return np.zeros(num_samples)
+    # Least squares fit (this overwrites the initialized ones)
+    w_full = np.linalg.pinv(X_bias) @ y
+    globals.w = w_full[:-1]
+    globals.b = w_full[-1]
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
@@ -163,14 +173,13 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 1: Band-pass filter to remove unwanted noise
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
-    reference_signal = reference_signal[:fs*5]
-
     # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal, not_reading = pattern_filter(filtered_signal, reference_signal, fps=fs)
-
-    if len(globals.history) < 300:
-        globals.history = np.concatenate((globals.history, clean_signal[:fs * 5]))
-    else:
-        globals.history = np.concatenate((globals.history[-180:], clean_signal[:fs * 5]))
+    globals.last_chunk = clean_signal[-fs:]
+    #
+    # if len(globals.history) < 300:
+    #     globals.history = np.concatenate((globals.history, clean_signal[:fs * 5]))
+    # else:
+    #     globals.history = np.concatenate((globals.history[-180:], clean_signal[:fs * 5]))
 
     return clean_signal.flatten(), filtered_signal.flatten(), not_reading

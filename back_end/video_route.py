@@ -53,6 +53,7 @@ def setup_video_route(app):
 # ############ part 3: filtering ####################
                 with open("reference.txt", "r") as file:
                     reference_signal = ast.literal_eval(file.read())  # Convert string to list
+                    reference_signal = reference_signal[:fps * 5]
 
                 clean_signal, filtered_signal, not_reading = denoise_ppg(
                     globals.concatenated_intensities, fps, reference_signal)
