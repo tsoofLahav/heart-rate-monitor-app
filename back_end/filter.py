@@ -147,7 +147,7 @@ def predict_next_segment(past_signal, num_samples):
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
-    """Denoises PPG using LMS filtering without DTW."""
+    """Denoises PPG using LMS filtering without DTW"""
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
 
