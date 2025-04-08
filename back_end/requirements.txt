@@ -8,3 +8,4 @@ opencv-python-headless==4.8.1.78
 fastdtw~=0.3.4
 statsmodels~=0.14.4
 pyodbc~=5.2.0
+scikit-learn~=1.6.1

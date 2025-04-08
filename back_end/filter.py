@@ -1,10 +1,9 @@
 from scipy.signal import butter, sosfiltfilt
-import logging
-from scipy.signal import correlate
 from scipy.interpolate import interp1d
 import numpy as np
 import globals
 from statsmodels.tsa.ar_model import AutoReg
+from sklearn.linear_model import LinearRegression
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
@@ -52,35 +51,26 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 def pattern_filter(noisy_signal, reference_signal,
                    fps=24, trust_threshold=0.65, match_threshold=0.65):
-    """
-    Filters signal in 1-second chunks using pattern matching and prediction.
-    Returns output and not_reading flag if 5 artifacts are detected in a row.
-    """
-
     batch_size = fps
     n = len(noisy_signal)
     output = np.empty((0,), dtype=np.float32)
     artifact_streak = 0
     not_reading = False
 
-    reference_std = np.std(reference_signal) + 1e-8  # fixed std
+    reference_std = np.std(reference_signal) + 1e-8
 
     for i in range(0, n, batch_size):
         if i + batch_size > n:
-            break  # skip incomplete batch
+            break
 
         signal_chunk = noisy_signal[i:i + batch_size]
-
-        # 1. Check trust by std ratio
         std_ratio = np.std(signal_chunk) / reference_std
         trust_factor = np.exp(-abs(np.log(std_ratio)))
 
         is_artifact = trust_factor < trust_threshold
 
-        # 2. If std is fine, check structural match
         if not is_artifact:
             aligned_reference = match_reference_segment(signal_chunk, reference_signal)
-
             similarity = np.dot(signal_chunk, aligned_reference) / (
                 np.linalg.norm(signal_chunk) * np.linalg.norm(aligned_reference) + 1e-8)
 
@@ -91,17 +81,47 @@ def pattern_filter(noisy_signal, reference_signal,
             else:
                 is_artifact = True
 
-        # 3. Handle artifact
         artifact_streak += 1
         if artifact_streak >= 5:
             not_reading = True
 
         if is_artifact:
-            history_and_output = np.concatenate((globals.history, output)) if output.size > 0 else globals.history
-            predicted_chunk = predict_next_segment(history_and_output, batch_size)
+            history_input = np.concatenate((globals.history, output))[-100:]  # Use last 100 points for context
+            predicted_chunk = lstm_predict_next_segment(history_input, batch_size)
             output = np.concatenate((output, predicted_chunk))
 
     return output, not_reading
+
+
+def lstm_predict_next_segment(history, length):
+    """
+    Predicts the next `length` signal points using simple linear regression over past values.
+    This is a lightweight approximation of LSTM behavior.
+    """
+    history = np.array(history[-100:], dtype=np.float32)
+    if len(history) < 25:
+        return np.zeros(length)
+
+    window_size = 24
+    X, y = [], []
+    for i in range(len(history) - window_size):
+        X.append(history[i:i + window_size])
+        y.append(history[i + window_size])
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    prediction_input = history[-window_size:].tolist()
+    predictions = []
+    for _ in range(length):
+        next_val = model.predict([prediction_input])[
+            0
+        ]  # predict returns array
+        predictions.append(next_val)
+        prediction_input.pop(0)
+        prediction_input.append(next_val)
+
+    return np.array(predictions)
 
 
 def predict_next_segment(past_signal, num_samples):

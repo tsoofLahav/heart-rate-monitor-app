@@ -1,9 +1,7 @@
 import numpy as np
 from scipy.signal import find_peaks
-from statsmodels.tsa.ar_model import AutoReg
-import math
+from statsmodels.tsa.arima.model import ARIMA
 import globals
-import logging
 
 
 def detect_peaks(signal, fps, std_multiplier=0.33):
@@ -58,7 +56,7 @@ def merge_intervals(intervals1, intervals2):
 
 
 def ar_predict(target_time=10.0):
-    """Predicts intervals until total sum reaches or slightly exceeds target_time."""
+    """Predicts intervals until total sum reaches or slightly exceeds target_time using ARIMA."""
     if len(globals.past_intervals) > 60:
         intervals = globals.past_intervals[-60:]
     else:
@@ -70,12 +68,16 @@ def ar_predict(target_time=10.0):
 
     if len(train_data) <= 5:
         return None
-    lags = min(8, (len(train_data) // 2) - 1)
 
-    model = AutoReg(train_data, lags=lags, old_names=False)
+    # ARIMA(p=8, d=0, q=0) is equivalent to AR with 8 lags
+    p = min(8, (len(train_data) // 2) - 1)
+    d = 0
+    q = 1  # allows small error correction
+
+    model = ARIMA(train_data, order=(p, d, q))
     model_fit = model.fit()
 
-    predicted = model_fit.predict(start=len(train_data), end=len(train_data) + 20, dynamic=True)
+    predicted = model_fit.forecast(steps=20)
 
     total = 0.0
     index = 0
@@ -92,6 +94,7 @@ def ar_predict(target_time=10.0):
     if result[0] <= 0 and len(result) > 1:
         result = result[1:]
         result[0] -= last_interval
+
     return np.array(result)
 
 

@@ -81,6 +81,7 @@ def setup_video_route(app):
                     # Return processed data as a JSON response
                     return jsonify({
                         'final': clean_signal.tolist(),
+                        'filtered': filtered_signal.tolist(),
                         'intervals': intervals,
                         'predicted_intervals': concatenated_intervals.tolist(),
                         'time_stamps': time_stamps.tolist()
