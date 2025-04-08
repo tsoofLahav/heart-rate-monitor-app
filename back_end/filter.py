@@ -50,7 +50,7 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
 
 
 def pattern_filter(noisy_signal, reference_signal,
-                   fps=24, trust_threshold=0.7, match_threshold=0.5):
+                   fps=24, trust_threshold=0.5, match_threshold=0.8):
     batch_size = fps
     n = len(noisy_signal)
     output = np.empty((0,), dtype=np.float32)
