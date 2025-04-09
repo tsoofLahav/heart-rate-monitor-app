@@ -33,14 +33,15 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.8):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
     segments = split_by_minima(noisy_signal, fps)
     norm = np.linalg.norm(reference_signal)
     output = []
     buffer = []
+    not_reading = False
 
     for chunk in segments:
-        if len(chunk) < 4:
+        if len(chunk) < 6:
             output.append(chunk)
             continue
 
@@ -56,13 +57,15 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.8):
             output.append(chunk)
         else:
             buffer.append(chunk)
+        if len(buffer) >= 50:
+            not_reading = True
 
     if buffer:
         length = sum(len(b) for b in buffer)
         context = np.concatenate((globals.history, *output))[-120:]
         output.append(fast_predict_next_segment(context, length))
 
-    return np.concatenate(output)
+    return np.concatenate(output), not_reading
 
 
 def fast_predict_next_segment(history, length):
@@ -104,7 +107,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
     # Step 2: Apply LMS filtering directly (no DTW).
-    clean_signal = pattern_filter(fs, filtered_signal, reference_signal)
+    clean_signal, not_reading = pattern_filter(fs, filtered_signal, reference_signal)
     globals.history.extend(clean_signal[:fs*5])
 
-    return clean_signal.flatten(), filtered_signal.flatten(), False
+    return clean_signal.flatten(), filtered_signal.flatten(), not_reading

@@ -79,6 +79,11 @@ def ar_predict(target_time=10.0):
 
     predicted = model_fit.forecast(steps=20)
 
+    predicted[0] -= last_interval
+    if predicted[0] <= 0:
+        target_time -= predicted[0]
+        predicted[0] = 0
+
     total = 0.0
     index = 0
     while index < len(predicted) and total + predicted[index] < target_time:
@@ -88,12 +93,6 @@ def ar_predict(target_time=10.0):
     result = predicted[:index]
     if index < len(predicted):
         result = np.append(result, target_time - total)
-
-    # Adjust first interval
-    result[0] -= last_interval
-    if result[0] <= 0 and len(result) > 1:
-        result = result[1:]
-        result[0] -= last_interval
 
     return np.array(result)
 

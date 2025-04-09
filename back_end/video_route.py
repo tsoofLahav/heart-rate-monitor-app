@@ -61,6 +61,9 @@ def setup_video_route(app):
                 if not_reading:
                     globals.concatenated_intensities = []
                     globals.round_count = 0
+                    globals.history = []
+                    globals.past_intervals = None
+                    globals.average_gap = None
                     return jsonify({'not_reading': True})
 
 # ############ part 4: peak detection and learning ###################
@@ -96,4 +99,9 @@ def setup_video_route(app):
 
         except Exception as e:
             logging.exception("Unhandled exception:")
+            globals.concatenated_intensities = []
+            globals.round_count = 0
+            globals.history = []
+            globals.past_intervals = None
+            globals.average_gap = None
             return jsonify({'server_error': True}), 500

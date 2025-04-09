@@ -1,10 +1,15 @@
+# video_route
 concatenated_intensities = []
 round_count = 0
-past_intervals = None
-list_intervals_lists = []
-w = None
-b = None
-last_chunk = None
-base_factor = None
-average_gap = None
+
+# filter
 history = []
+
+# peak_predict
+past_intervals = None
+
+# more calculations
+average_gap = None
+
+# only testing mode
+list_intervals_lists = []
