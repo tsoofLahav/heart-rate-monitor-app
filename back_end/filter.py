@@ -123,7 +123,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     filtered_signal = butter_bandpass_filter(ppg_signal, fs)
 
     # Step 2: Apply LMS filtering directly (no DTW).
-    clean_signal, not_reading = pattern_filter(filtered_signal, reference_signal, fps=fs)
+    clean_signal, not_reading = pattern_filter(filtered_signal, reference_signal)
     globals.last_chunk = clean_signal[-fs:]
     #
     # if len(globals.history) < 300:
