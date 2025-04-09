@@ -55,7 +55,7 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
     return best_segment
 
 
-def pattern_filter(noisy_signal, reference_signal, match_threshold=0.8):
+def pattern_filter(noisy_signal, reference_signal, match_threshold=0.9):
     segments = split_by_minima(noisy_signal)
     output = []
     buffer = []
