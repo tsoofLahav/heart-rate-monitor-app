@@ -3,8 +3,13 @@ from scipy.interpolate import interp1d
 import numpy as np
 import globals
 from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.tsa.ar_model import AutoReg
-from sklearn.linear_model import LinearRegression
+from scipy.signal import find_peaks
+
+
+def split_by_minima(signal):
+    peaks, _ = find_peaks(-signal)
+    edges = [0] + list(peaks) + [len(signal)]
+    return [signal[edges[i]:edges[i+1]] for i in range(len(edges)-1)]
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
@@ -50,61 +55,48 @@ def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 
     return best_segment
 
 
-def pattern_filter(noisy_signal, reference_signal,
-                   fps=24, trust_threshold=0.5, match_threshold=0.8):
-    batch_size = fps
-    n = len(noisy_signal)
-    output = np.empty((0,), dtype=np.float32)
-    artifact_streak = 0
-    not_reading = False
+def pattern_filter(noisy_signal, reference_signal, match_threshold=0.8):
+    segments = split_by_minima(noisy_signal)
+    output = []
+    buffer = []
 
-    reference_std = np.std(reference_signal) + 1e-8
+    for chunk in segments:
+        if len(chunk) < 4:
+            continue
 
-    for i in range(0, n, batch_size):
-        if i + batch_size > n:
-            break
+        aligned = match_reference_segment(chunk, reference_signal)
+        similarity = np.dot(chunk, aligned) / (
+            np.linalg.norm(chunk) * np.linalg.norm(aligned) + 1e-8)
 
-        signal_chunk = noisy_signal[i:i + batch_size]
-        std_ratio = np.std(signal_chunk) / reference_std
-        trust_factor = np.exp(-abs(np.log(std_ratio)))
-        print("Trust factor: ", trust_factor)
-        is_artifact = trust_factor < trust_threshold
+        if similarity >= match_threshold:
+            if buffer:
+                length = sum(len(b) for b in buffer)
+                context = np.concatenate((globals.history, *output))[-120:]
+                output.append(arima_predict_next_segment(context, length))
+                buffer.clear()
+            output.append(chunk)
+        else:
+            buffer.append(chunk)
 
-        if not is_artifact:
-            aligned_reference = match_reference_segment(signal_chunk, reference_signal)
-            similarity = np.dot(signal_chunk, aligned_reference) / (
-                np.linalg.norm(signal_chunk) * np.linalg.norm(aligned_reference) + 1e-8)
-            print("Similarity: ", similarity)
-            if similarity >= match_threshold:
-                output = np.concatenate((output, signal_chunk))
-                artifact_streak = 0
-                continue
-            else:
-                is_artifact = True
+    if buffer:
+        length = sum(len(b) for b in buffer)
+        context = np.concatenate((globals.history, *output))[-120:]
+        output.append(arima_predict_next_segment(context, length))
 
-        artifact_streak += 1
-        if artifact_streak >= 3:
-            not_reading = True
-
-        if is_artifact:
-            history_input = np.concatenate((globals.history, output))[-100:]  # Use last 100 points for context
-            predicted_chunk = lstm_predict_next_segment(history_input, batch_size)
-            output = np.concatenate((output, predicted_chunk))
-
-    return output, not_reading
+    return np.concatenate(output)
 
 
-def lstm_predict_next_segment(history, length):
+def arima_predict_next_segment(history, length):
     """
     Predicts the next `length` signal points using ARIMA.
     This replaces the previous LinearRegression approximation of LSTM.
     """
-    history = np.array(history[-100:], dtype=np.float32)
+    history = np.array(history[-120:], dtype=np.float32)
     if len(history) < 25:
         return np.zeros(length)
 
     try:
-        model = ARIMA(history, order=(6, 0, 4))  # (p,d,q) can be tuned
+        model = ARIMA(history, order=(8, 1, 6))  # (p,d,q) can be tuned
         model_fit = model.fit()
         forecast = model_fit.forecast(steps=length)
         return np.array(forecast)
