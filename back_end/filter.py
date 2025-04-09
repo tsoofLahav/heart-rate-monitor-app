@@ -104,7 +104,7 @@ def lstm_predict_next_segment(history, length):
         return np.zeros(length)
 
     try:
-        model = ARIMA(history, order=(6, 1, 4))  # (p,d,q) can be tuned.
+        model = ARIMA(history, order=(6, 1, 4))  # (p,d,q) can be tuned
         model_fit = model.fit()
         forecast = model_fit.forecast(steps=length)
         return np.array(forecast)
