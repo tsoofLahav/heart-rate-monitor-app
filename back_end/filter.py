@@ -4,7 +4,7 @@ import numpy as np
 import globals
 from statsmodels.tsa.arima.model import ARIMA
 from scipy.signal import find_peaks
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 
 
 def split_by_minima(signal, fs):
@@ -26,8 +26,16 @@ def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
 def extrapolate_to_length(y, target_length):
     y = np.array(y, dtype=np.float32)
     current_length = len(y)
+
+    # Enforce length limits
+    if target_length > current_length * 2:
+        target_length = int(current_length * 2)
+    elif target_length < current_length / 2.5:
+        target_length = int(current_length / 2.5)
+
     if current_length == target_length:
         return y
+
     x = np.linspace(0, 1, current_length)
     x_new = np.linspace(0, 1, target_length)
     return np.interp(x_new, x, y)
@@ -73,11 +81,11 @@ def fast_predict_next_segment(history, length):
     if len(history) < 25:
         return np.zeros(length)
 
-    window = 36
+    window = 24
     X = np.array([history[i:i+window] for i in range(len(history)-window)])
     y = history[window:]
 
-    model = LinearRegression().fit(X, y)
+    model = Ridge(alpha=0.1).fit(X, y)
     seq = history[-window:].tolist()
     pred = []
 
