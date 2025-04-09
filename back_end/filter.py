@@ -33,7 +33,7 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.93):
     segments = split_by_minima(noisy_signal, fps)
     norm = np.linalg.norm(reference_signal)
     output = []
@@ -73,7 +73,7 @@ def fast_predict_next_segment(history, length):
     if len(history) < 25:
         return np.zeros(length)
 
-    window = 24
+    window = 36
     X = np.array([history[i:i+window] for i in range(len(history)-window)])
     y = history[window:]
 
