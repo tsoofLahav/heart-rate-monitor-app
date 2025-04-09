@@ -34,16 +34,17 @@ def extrapolate_to_length(y, target_length):
 
 def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.8):
     segments = split_by_minima(noisy_signal, fps)
+    norm = np.linalg.norm(reference_signal)
     output = []
     buffer = []
 
     for chunk in segments:
         if len(chunk) < 4:
+            output.append(chunk)
             continue
 
         aligned = extrapolate_to_length(chunk, len(reference_signal))
-        similarity = np.dot(reference_signal, aligned) / (
-            np.linalg.norm(reference_signal) * np.linalg.norm(aligned) + 1e-8)
+        similarity = np.dot(reference_signal, aligned) / (norm * np.linalg.norm(aligned) + 1e-8)
 
         if similarity >= match_threshold:
             if buffer:
