@@ -4,6 +4,7 @@ import numpy as np
 import globals
 from statsmodels.tsa.arima.model import ARIMA
 from scipy.signal import find_peaks
+from sklearn.linear_model import LinearRegression
 
 
 def split_by_minima(signal, fs):
@@ -50,7 +51,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.8):
             if buffer:
                 length = sum(len(b) for b in buffer)
                 context = np.concatenate((globals.history, *output))[-120:]
-                output.append(arima_predict_next_segment(context, length))
+                output.append(fast_predict_next_segment(context, length))
                 buffer.clear()
             output.append(chunk)
         else:
@@ -59,28 +60,30 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.8):
     if buffer:
         length = sum(len(b) for b in buffer)
         context = np.concatenate((globals.history, *output))[-120:]
-        output.append(arima_predict_next_segment(context, length))
+        output.append(fast_predict_next_segment(context, length))
 
     return np.concatenate(output)
 
 
-def arima_predict_next_segment(history, length):
-    """
-    Predicts the next `length` signal points using ARIMA.
-    This replaces the previous LinearRegression approximation of LSTM.
-    """
+def fast_predict_next_segment(history, length):
     history = np.array(history[-120:], dtype=np.float32)
     if len(history) < 25:
         return np.zeros(length)
 
-    try:
-        model = ARIMA(history, order=(8, 1, 6))  # (p,d,q) can be tuned
-        model_fit = model.fit()
-        forecast = model_fit.forecast(steps=length)
-        return np.array(forecast)
-    except Exception as e:
-        print("ARIMA prediction failed:", e)
-        return np.zeros(length)
+    window = 24
+    X = np.array([history[i:i+window] for i in range(len(history)-window)])
+    y = history[window:]
+
+    model = LinearRegression().fit(X, y)
+    seq = history[-window:].tolist()
+    pred = []
+
+    for _ in range(length):
+        next_val = model.predict([seq])[0]
+        pred.append(next_val)
+        seq = seq[1:] + [next_val]
+
+    return np.array(pred)
 
 
 def denoise_ppg(ppg_signal, fs, reference_signal):
@@ -102,6 +105,6 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
 
     # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal = pattern_filter(fs, filtered_signal, reference_signal)
-    globals.last_chunk = clean_signal[-fs:]
+    globals.history.append(clean_signal[:fs*5])
 
     return clean_signal.flatten(), filtered_signal.flatten(), False

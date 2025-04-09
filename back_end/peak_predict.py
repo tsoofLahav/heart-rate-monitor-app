@@ -57,8 +57,8 @@ def merge_intervals(intervals1, intervals2):
 
 def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time using ARIMA."""
-    if len(globals.past_intervals) > 60:
-        intervals = globals.past_intervals[-60:]
+    if len(globals.past_intervals) > 30:
+        intervals = globals.past_intervals[-30:]
     else:
         intervals = globals.past_intervals
 
@@ -72,7 +72,7 @@ def ar_predict(target_time=10.0):
     # ARIMA(p=8, d=0, q=0) is equivalent to AR with 8 lags
     p = min(8, (len(train_data) // 2) - 1)
     d = 0
-    q = 1  # allows small error correction
+    q = 2  # allows small error correction
 
     model = ARIMA(train_data, order=(p, d, q))
     model_fit = model.fit()
