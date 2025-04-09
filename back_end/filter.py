@@ -11,7 +11,7 @@ def split_by_minima(signal, fs):
     distance = int(0.35 * fs)
     peaks, _ = find_peaks(-signal, height=0.5 * std, distance=distance)
     edges = [0] + list(peaks) + [len(signal)]
-    return peaks, [signal[edges[i]:edges[i+1]] for i in range(len(edges)-1)]
+    return [signal[edges[i]:edges[i+1]] for i in range(len(edges)-1)]
 
 
 def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
@@ -21,40 +21,6 @@ def butter_bandpass_filter(signal, fs, lowcut=0.8, highcut=3.0, order=6):
     sos = butter(order, [low, high], btype='band', output='sos')
     return sosfiltfilt(sos, signal)
 
-
-# def match_reference_segment(noisy_signal, reference_signal, stretch_range=(0.6, 1.2), steps=20):
-#     """
-#     Finds the best-matching segment in a longer reference for a given noisy signal,
-#     allowing stretching/squeezing.
-#     Returns the aligned segment from the reference (same length as noisy_signal).
-#     """
-#     noisy_signal = np.array(noisy_signal).flatten()
-#     reference_signal = np.array(reference_signal).flatten()
-#
-#     best_corr = -np.inf
-#     best_segment = None
-#
-#     for factor in np.linspace(*stretch_range, steps):
-#         # Stretch the reference
-#         stretched_len = int(len(reference_signal) * factor)
-#         x_old = np.linspace(0, 1, len(reference_signal))
-#         x_new = np.linspace(0, 1, stretched_len)
-#         stretched_ref = interp1d(x_old, reference_signal, kind='cubic', fill_value="extrapolate")(x_new)
-#
-#         # Slide over the stretched reference to find best matching window
-#         for start in range(0, len(stretched_ref) - len(noisy_signal) + 1):
-#             segment = stretched_ref[start:start + len(noisy_signal)]
-#
-#             # Normalize both before correlation
-#             segment_norm = (segment - np.mean(segment)) / (np.std(segment) + 1e-8)
-#             noisy_norm = (noisy_signal - np.mean(noisy_signal)) / (np.std(noisy_signal) + 1e-8)
-#             corr = np.dot(segment_norm, noisy_norm)
-#
-#             if corr > best_corr:
-#                 best_corr = corr
-#                 best_segment = segment
-#
-#     return best_segment
 
 def extrapolate_to_length(y, target_length):
     y = np.array(y, dtype=np.float32)
@@ -136,10 +102,5 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal = pattern_filter(fs, filtered_signal, reference_signal)
     globals.last_chunk = clean_signal[-fs:]
-    #
-    # if len(globals.history) < 300:
-    #     globals.history = np.concatenate((globals.history, clean_signal[:fs * 5]))
-    # else:
-    #     globals.history = np.concatenate((globals.history[-180:], clean_signal[:fs * 5]))
 
     return clean_signal.flatten(), filtered_signal.flatten(), False
