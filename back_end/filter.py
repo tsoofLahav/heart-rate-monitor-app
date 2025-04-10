@@ -88,7 +88,7 @@ def fast_predict_next_segment(history, length):
     X = np.array([history[i:i+window] for i in range(len(history)-window)])
     y = history[window:]
 
-    model = Ridge(alpha=0.1).fit(X, y)
+    model = Ridge(alpha=1).fit(X, y)
     seq = history[-window:].tolist()
     pred = []
 
@@ -119,6 +119,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
 
     # Step 2: Apply LMS filtering directly (no DTW).
     clean_signal, not_reading = pattern_filter(fs, filtered_signal, reference_signal)
-    globals.history.extend(clean_signal[:fs*5])
+    if not not_reading:
+        globals.history.extend(clean_signal[:fs*5])
 
     return clean_signal.flatten(), filtered_signal.flatten(), not_reading
