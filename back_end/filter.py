@@ -109,7 +109,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     ppg_signal -= np.mean(ppg_signal)
     reference_signal -= np.mean(reference_signal)
 
-    # Scale both to have the same std (e.g., the average std).
+    # Scale both to have the same std (e.g., the average std)
     mad = np.median(np.abs(ppg_signal - np.median(ppg_signal)))
     robust_std = mad * 1.4826
     ppg_signal = (ppg_signal / robust_std) * np.std(reference_signal)
