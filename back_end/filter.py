@@ -54,7 +54,10 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.93):
             continue
 
         aligned = extrapolate_to_length(chunk, len(reference_signal))
-        similarity = np.dot(reference_signal, aligned) / (norm * np.linalg.norm(aligned) + 1e-8)
+        if len(aligned) != len(reference_signal):
+            similarity = 0
+        else:    
+            similarity = np.dot(reference_signal, aligned) / (norm * np.linalg.norm(aligned) + 1e-8)
 
         if similarity >= match_threshold:
             if buffer:
