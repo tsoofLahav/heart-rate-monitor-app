@@ -56,7 +56,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.93):
         aligned = extrapolate_to_length(chunk, len(reference_signal))
         if len(aligned) != len(reference_signal):
             similarity = 0
-        else:    
+        else:
             similarity = np.dot(reference_signal, aligned) / (norm * np.linalg.norm(aligned) + 1e-8)
 
         if similarity >= match_threshold:
@@ -105,7 +105,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
 
-    # Normalize each to zero mean
+    # Normalize each to zero mean.
     ppg_signal -= np.mean(ppg_signal)
     reference_signal -= np.mean(reference_signal)
 
