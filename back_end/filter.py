@@ -75,14 +75,12 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
                 buffer.clear()
             output.append(chunk)
         else:
-            buffer.append(chunk)
-        if len(buffer) > 0:
-            if len(*buffer) >= 50:
-                not_reading = True
-
-    if len(buffer) > 0:
+            buffer.extend(chunk)
         if len(*buffer) >= 50:
             not_reading = True
+
+    if len(*buffer) >= 50:
+        not_reading = True
     if buffer:
         length = sum(len(b) for b in buffer)
         context = np.concatenate((globals.history, *output))[-120:]
