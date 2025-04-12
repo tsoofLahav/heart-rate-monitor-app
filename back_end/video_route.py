@@ -72,7 +72,7 @@ def setup_video_route(app):
                 globals.average_gap = np.mean(intervals[1:-1])
                 if globals.round_count < 4:
                     globals.list_intervals_lists.append(predicted_intervals)
-                    # Return processed data as a JSON response
+                    # Return processed data as a JSON response.
                     return jsonify({
                         'final': clean_signal.tolist(),
                         'filtered': filtered_signal.tolist(),
