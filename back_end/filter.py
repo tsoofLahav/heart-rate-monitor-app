@@ -112,7 +112,7 @@ def denoise_ppg(ppg_signal, fs, reference_signal):
     ppg_signal = np.array(ppg_signal).flatten()
     reference_signal = np.array(reference_signal).flatten()
 
-    # Normalize each to zero mean.
+    # Normalize each to zero mean
     ppg_signal -= np.mean(ppg_signal)
     reference_signal -= np.mean(reference_signal)
 
