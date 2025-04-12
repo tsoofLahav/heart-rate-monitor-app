@@ -32,8 +32,8 @@ def extrapolate_to_length(y, target_length):
         max_len = current_length * 2
         min_len = current_length / 2.5
     else:
-        max_len = int(globals.average_gap * 1.5)
-        min_len = int(globals.average_gap * 0.7)
+        max_len = int(globals.average_gap * 2)
+        min_len = int(globals.average_gap * 0.5)
 
     if target_length > max_len:
         target_length = max_len
