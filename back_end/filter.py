@@ -76,10 +76,10 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
             output.append(chunk)
         else:
             buffer.extend(chunk)
-        if len(*buffer) >= 50:
+        if len(buffer) >= 50:
             not_reading = True
 
-    if len(*buffer) >= 50:
+    if len(buffer) >= 50:
         not_reading = True
     if buffer:
         length = sum(len(b) for b in buffer)
