@@ -28,7 +28,7 @@ def compute_intervals(peaks, segment_length, fps):
     if len(peaks) == 0:
         return [segment_length / fps]  # No peaks detected, treat whole segment as one interval
 
-    intervals = np.diff(peaks).tolist()  # Compute intervals between peaks
+    intervals = np.diff(peaks).tolist()  # Compute intervals between peaks.
 
     # Convert intervals from frames to seconds
     intervals = [i / fps for i in intervals]
