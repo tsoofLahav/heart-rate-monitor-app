@@ -33,8 +33,8 @@ def extrapolate_to_length(y, target_length):
         min_len = current_length / 2.5
     else:
         ave = globals.average_gap * 24
-        max_len = int(ave * 1.5)
-        min_len = int(ave * 0.7)
+        max_len = int(ave * 1.4)
+        min_len = int(ave * 0.8)
 
     if target_length > max_len:
         target_length = max_len
@@ -49,7 +49,7 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.93):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
     segments = split_by_minima(noisy_signal, fps)
     norm = np.linalg.norm(reference_signal)
     output = []
@@ -76,10 +76,10 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.93):
             output.append(chunk)
         else:
             buffer.append(chunk)
-        if len(buffer) >= 50:
+        if len(*buffer) >= 50:
             not_reading = True
 
-    if len(buffer) >= 50:
+    if len(*buffer) >= 50:
         not_reading = True
     if buffer:
         length = sum(len(b) for b in buffer)
