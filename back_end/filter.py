@@ -95,7 +95,7 @@ def fast_predict_next_segment(history, length):
     X = np.array([history[i:i+window] for i in range(len(history)-window)])
     y = history[window:]
 
-    model = Ridge(alpha=5).fit(X, y)
+    model = Ridge(alpha=1).fit(X, y)
     seq = history[-window:].tolist()
     pred = []
 
