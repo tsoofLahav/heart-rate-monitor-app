@@ -28,10 +28,17 @@ def extrapolate_to_length(y, target_length):
     current_length = len(y)
 
     # Enforce length limits
-    if target_length > current_length * 2:
-        target_length = int(current_length * 2)
-    elif target_length < current_length / 2.5:
-        target_length = int(current_length / 2.5)
+    if getattr(globals, "average_gap", None) is None:
+        max_len = current_length * 2
+        min_len = current_length / 2.5
+    else:
+        max_len = int(globals.average_gap * 1.5)
+        min_len = int(globals.average_gap * 0.7)
+
+    if target_length > max_len:
+        target_length = max_len
+    elif target_length < min_len:
+        target_length = min_len
 
     if current_length == target_length:
         return y
@@ -88,7 +95,7 @@ def fast_predict_next_segment(history, length):
     X = np.array([history[i:i+window] for i in range(len(history)-window)])
     y = history[window:]
 
-    model = Ridge(alpha=1).fit(X, y)
+    model = Ridge(alpha=5).fit(X, y)
     seq = history[-window:].tolist()
     pred = []
 
