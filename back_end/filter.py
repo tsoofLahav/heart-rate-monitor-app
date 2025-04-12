@@ -69,7 +69,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
 
         if similarity >= match_threshold:
             if buffer:
-                length = sum(len(b) for b in buffer)
+                length = len(buffer)
                 context = np.concatenate((globals.history, *output))[-120:]
                 output.append(fast_predict_next_segment(context, length))
                 buffer.clear()
@@ -82,7 +82,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.9):
     if len(buffer) >= 50:
         not_reading = True
     if buffer:
-        length = sum(len(b) for b in buffer)
+        length = len(buffer)
         context = np.concatenate((globals.history, *output))[-120:]
         output.append(fast_predict_next_segment(context, length))
 
