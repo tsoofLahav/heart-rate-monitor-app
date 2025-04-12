@@ -32,8 +32,9 @@ def extrapolate_to_length(y, target_length):
         max_len = current_length * 2
         min_len = current_length / 2.5
     else:
-        max_len = int(globals.average_gap * 2)
-        min_len = int(globals.average_gap * 0.5)
+        ave = globals.average_gap * 24
+        max_len = int(ave * 1.5)
+        min_len = int(ave * 0.7)
 
     if target_length > max_len:
         target_length = max_len
@@ -78,6 +79,8 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.93):
         if len(buffer) >= 50:
             not_reading = True
 
+    if len(buffer) >= 50:
+        not_reading = True
     if buffer:
         length = sum(len(b) for b in buffer)
         context = np.concatenate((globals.history, *output))[-120:]
@@ -95,7 +98,7 @@ def fast_predict_next_segment(history, length):
     X = np.array([history[i:i+window] for i in range(len(history)-window)])
     y = history[window:]
 
-    model = Ridge(alpha=1).fit(X, y)
+    model = Ridge(alpha=5).fit(X, y)
     seq = history[-window:].tolist()
     pred = []
 
