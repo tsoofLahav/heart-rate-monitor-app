@@ -5,6 +5,7 @@ import globals
 from statsmodels.tsa.arima.model import ARIMA
 from scipy.signal import find_peaks
 from sklearn.linear_model import Ridge
+from fastdtw import fastdtw
 
 
 def split_by_minima(signal, fs):
@@ -27,20 +28,6 @@ def extrapolate_to_length(y, target_length):
     y = np.array(y, dtype=np.float32)
     current_length = len(y)
 
-    # Enforce length limits
-    if getattr(globals, "average_gap", None) is None:
-        max_len = current_length * 2
-        min_len = current_length / 2.5
-    else:
-        ave = globals.average_gap * 24
-        max_len = int(ave * 1.5)
-        min_len = int(ave * 0.7)
-
-    if target_length > max_len:
-        target_length = max_len
-    elif target_length < min_len:
-        target_length = min_len
-
     if current_length == target_length:
         return y
 
@@ -49,9 +36,8 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.87):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=40):
     segments = split_by_minima(noisy_signal, fps)
-    norm = np.linalg.norm(reference_signal)
     output = []
     buffer = []
     not_reading = False
@@ -60,14 +46,11 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=0.87):
         if len(chunk) < 6:
             output.append(chunk)
             continue
+        if globals.average_gap is not None:
+            reference_signal = extrapolate_to_length(reference_signal, globals.average_gap)
+        distance, _ = fastdtw(chunk, reference_signal)
 
-        aligned = extrapolate_to_length(chunk, len(reference_signal))
-        if len(aligned) != len(reference_signal):
-            similarity = 0
-        else:
-            similarity = np.dot(reference_signal, aligned) / (norm * np.linalg.norm(aligned) + 1e-8)
-
-        if similarity >= match_threshold:
+        if distance >= match_threshold:
             if buffer:
                 length = len(buffer)
                 context = np.concatenate((globals.history, *output))[-120:]
