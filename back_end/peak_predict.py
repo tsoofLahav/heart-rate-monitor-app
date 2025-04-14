@@ -10,7 +10,7 @@ def detect_peaks(signal, fps, std_multiplier=0.33):
     if globals.average_gap:
         min_distance = int(globals.average_gap * fps * 0.5)  # looser to allow fast changes
     else:
-        min_distance = int(fps * 0.33)
+        min_distance = int(fps * 0.43)
 
     min_height = np.std(signal) * std_multiplier
 
