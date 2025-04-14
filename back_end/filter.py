@@ -53,7 +53,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=3):
         print("distance:", distance)
         sys.stdout.flush()
 
-        if distance >= match_threshold:
+        if distance <= match_threshold:
             if buffer:
                 length = len(buffer)
                 context = np.concatenate((globals.history, *output))[-120:]
