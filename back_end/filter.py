@@ -49,7 +49,16 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=3.6):
             continue
         if globals.average_gap is not None:
             reference_signal = extrapolate_to_length(reference_signal, int(globals.average_gap*fps))
-        distance, _ = fastdtw(chunk, reference_signal)
+        dtw_distance, _ = fastdtw(chunk, reference_signal)
+
+        # Width difference (normalized)
+        width_diff = abs(len(chunk) - len(reference_signal)) / fps
+
+        # Amplitude difference (normalized)
+        amp_diff = abs(np.std(chunk) - np.std(reference_signal)) / (np.std(reference_signal) + 1e-8)
+
+        # Weighted combination
+        distance = dtw_distance + 5 * width_diff + 2 * amp_diff
         print("distance:", distance)
         sys.stdout.flush()
 
