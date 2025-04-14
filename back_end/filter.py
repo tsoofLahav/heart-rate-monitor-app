@@ -51,15 +51,15 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=4.4):
             reference_signal = extrapolate_to_length(reference_signal, int(globals.average_gap*fps))
         dtw_distance, _ = fastdtw(chunk, reference_signal)
         print("dtw_distance:", dtw_distance)
-        sys.stdout.flush()
+
         # Width difference (normalized)
         width_diff = abs(len(chunk) - len(reference_signal)) / fps
         print("distance_width:", width_diff)
-        sys.stdout.flush()
+
         # Amplitude difference (normalized)
         amp_diff = abs(np.std(chunk) - np.std(reference_signal)) / (np.std(reference_signal) + 1e-8)
         print("distance_amp:", amp_diff)
-        sys.stdout.flush()
+
         # Weighted combination.
         distance = 0.25 * dtw_distance + 20 * width_diff + 10 * amp_diff
         print("distance:", distance)
