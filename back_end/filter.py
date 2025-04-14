@@ -61,7 +61,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=7):
         print("distance_amp:", amp_diff)
 
         # Weighted combination.
-        distance = 0.33 * dtw_distance + 40 * width_diff + 10 * amp_diff
+        distance = 0.3 * dtw_distance + 40 * width_diff + 5 * amp_diff
         print("distance:", distance)
         sys.stdout.flush()
 
