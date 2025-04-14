@@ -57,7 +57,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=4.5):
         # Amplitude difference (normalized)
         amp_diff = abs(np.std(chunk) - np.std(reference_signal)) / (np.std(reference_signal) + 1e-8)
 
-        # Weighted combination
+        # Weighted combination.
         distance = 0.5 * dtw_distance + 8 * width_diff + 4 * amp_diff
         print("distance:", distance)
         sys.stdout.flush()
