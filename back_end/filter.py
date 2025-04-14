@@ -37,7 +37,7 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=10):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=6):
     segments = split_by_minima(noisy_signal, fps)
     output = []
     buffer = []
@@ -61,7 +61,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=10):
         print("distance_amp:", amp_diff)
 
         # Weighted combination.
-        distance = 0.34 * dtw_distance + 14 * width_diff + 8 * amp_diff
+        distance = 0.34 * dtw_distance + 20 * width_diff + 8 * amp_diff
         print("distance:", distance)
         sys.stdout.flush()
 
