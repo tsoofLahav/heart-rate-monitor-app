@@ -37,7 +37,7 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=3):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=3.6):
     segments = split_by_minima(noisy_signal, fps)
     output = []
     buffer = []
