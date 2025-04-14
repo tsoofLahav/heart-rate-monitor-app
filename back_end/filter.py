@@ -12,7 +12,7 @@ import sys
 def split_by_minima(signal, fs):
     std = np.std(signal)
     distance = int(0.35 * fs)
-    peaks, _ = find_peaks(-signal, height=0.5 * std, distance=distance)
+    peaks, _ = find_peaks(-signal, height=(-0.5) * std, distance=distance)
     edges = [0] + list(peaks) + [len(signal)]
     return [signal[edges[i]:edges[i+1]] for i in range(len(edges)-1)]
 
@@ -61,7 +61,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=7):
         print("distance_amp:", amp_diff)
 
         # Weighted combination.
-        distance = 0.4 * dtw_distance + 30 * width_diff + 4 * amp_diff
+        distance = 0.6 * dtw_distance + 20 * width_diff + 5 * amp_diff
         print("distance:", distance)
         sys.stdout.flush()
 
