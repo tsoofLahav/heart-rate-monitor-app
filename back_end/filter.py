@@ -49,6 +49,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=50):
         if globals.average_gap is not None:
             reference_signal = extrapolate_to_length(reference_signal, int(globals.average_gap*fps))
         distance, _ = fastdtw(chunk, reference_signal)
+        print("distance:" + str(distance))
 
         if distance >= match_threshold:
             if buffer:
