@@ -36,7 +36,7 @@ def extrapolate_to_length(y, target_length):
     return np.interp(x_new, x, y)
 
 
-def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=150):
+def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=50):
     segments = split_by_minima(noisy_signal, fps)
     output = []
     buffer = []
@@ -47,7 +47,7 @@ def pattern_filter(fps, noisy_signal, reference_signal, match_threshold=150):
             output.append(chunk)
             continue
         if globals.average_gap is not None:
-            reference_signal = extrapolate_to_length(reference_signal, globals.average_gap)
+            reference_signal = extrapolate_to_length(reference_signal, int(globals.average_gap*fps))
         distance, _ = fastdtw(chunk, reference_signal)
 
         if distance >= match_threshold:
