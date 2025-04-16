@@ -49,16 +49,15 @@ def compute_intervals(peaks, segment_length, fps):
 
 
 def merge_intervals(intervals1, intervals2, fps=24):
-    """Merges two sets of intervals smartly if the boundary gap is too short."""
+    """Merge intervals across a cut point, skipping short double-peak intervals."""
     if len(intervals1) > 0 and len(intervals2) > 0:
         gap_sum = intervals1[-1] + intervals2[0]
-        if gap_sum < 0.2 * fps:
-            half = gap_sum / 2
+        if gap_sum < 0.2 * fps and len(intervals2) > 1:
+            merged_first = intervals2[0] + intervals2[1]  # merge into the next one only
             merged_intervals = np.concatenate([
-                intervals1[:-1],
-                [intervals1[-2] + intervals1[-1] if len(intervals1) >= 2 else intervals1[-1] + half],
-                [half],
-                intervals2[1:] if len(intervals2) > 1 else []
+                intervals1,
+                [merged_first],
+                intervals2[2:]
             ])
         else:
             merged_first = intervals1[-1] + intervals2[0]
@@ -71,7 +70,6 @@ def merge_intervals(intervals1, intervals2, fps=24):
         merged_intervals = np.concatenate([intervals1, intervals2])
 
     return merged_intervals
-
 
 
 def ar_predict(target_time=10.0):
