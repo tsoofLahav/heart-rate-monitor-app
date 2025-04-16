@@ -74,10 +74,7 @@ def merge_intervals(intervals1, intervals2, fps=24):
 
 def ar_predict(target_time=10.0):
     """Predicts intervals until total sum reaches or slightly exceeds target_time using ARIMA."""
-    if len(globals.past_intervals) > 30:
-        intervals = globals.past_intervals[-30:]
-    else:
-        intervals = globals.past_intervals
+    intervals = globals.past_intervals[-30:]
 
     last_interval = intervals[-1]
     target_time += last_interval
@@ -98,7 +95,7 @@ def ar_predict(target_time=10.0):
 
     predicted[0] -= last_interval
     if predicted[0] <= 0:
-        target_time -= predicted[0]
+        target_time += predicted[0]
         predicted[0] = 0
 
     total = 0.0
