@@ -76,6 +76,7 @@ def setup_video_route(app):
                     return jsonify({
                         'final': clean_signal.tolist(),
                         'filtered': filtered_signal.tolist(),
+                        'intervals': intervals,
                         'time_stamps': time_stamps.tolist()
                     })
                 else:
