@@ -4,23 +4,27 @@ from statsmodels.tsa.arima.model import ARIMA
 import globals
 
 
-def detect_peaks(signal, fps, std_multiplier=0.33):
+def detect_peaks(signal, fps, std_multiplier=0.4):
     signal = np.array(signal)
-
-    if globals.average_gap:
-        min_distance = int(globals.average_gap * fps * 0.5)  # looser to allow fast changes
-    else:
-        min_distance = int(fps * 0.43)
-
     min_height = np.std(signal) * std_multiplier
 
-    peaks, properties = find_peaks(
-        signal,
-        height=min_height,
-        distance=min_distance
-    )
-    print(f"peaks:", str(peaks))
-    return peaks
+    # Find max peaks
+    max_peaks, _ = find_peaks(signal, height=min_height)
+    # Find min peaks (invert the signal)
+    min_peaks, _ = find_peaks(-signal, height=min_height)
+
+    max_peaks = list(max_peaks)
+    min_peaks = sorted(min_peaks)
+
+    # Filter max_peaks: only keep first one between each pair of min_peaks
+    valid_peaks = []
+    for i in range(len(min_peaks) - 1):
+        start, end = min_peaks[i], min_peaks[i + 1]
+        in_range = [p for p in max_peaks if start < p < end]
+        if in_range:
+            valid_peaks.append(in_range[0])  # keep only first
+
+    return np.array(valid_peaks)
 
 
 def compute_intervals(peaks, segment_length, fps):
