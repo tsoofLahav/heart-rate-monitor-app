@@ -8,21 +8,21 @@ def detect_peaks(signal, fps, std_multiplier=0.4):
     signal = np.array(signal)
     min_height = np.std(signal) * std_multiplier
 
-    # Find max peaks
     max_peaks, _ = find_peaks(signal, height=min_height)
-    # Find min peaks (invert the signal)
     min_peaks, _ = find_peaks(-signal, height=min_height)
 
     max_peaks = list(max_peaks)
     min_peaks = sorted(min_peaks)
-
-    # Filter max_peaks: only keep first one between each pair of min_peaks
     valid_peaks = []
-    for i in range(len(min_peaks) - 1):
-        start, end = min_peaks[i], min_peaks[i + 1]
+
+    # Create boundaries: start → min[0], min[0]→min[1], ..., min[-1]→end
+    boundaries = [-1] + min_peaks + [len(signal)]
+
+    for i in range(len(boundaries) - 1):
+        start, end = boundaries[i], boundaries[i + 1]
         in_range = [p for p in max_peaks if start < p < end]
         if in_range:
-            valid_peaks.append(in_range[0])  # keep only first
+            valid_peaks.append(in_range[0])
 
     return np.array(valid_peaks)
 
@@ -48,15 +48,30 @@ def compute_intervals(peaks, segment_length, fps):
     return intervals
 
 
-def merge_intervals(intervals1, intervals2):
-    """Merges two sets of intervals by summing the last of the first set with the first of the second set."""
+def merge_intervals(intervals1, intervals2, fps=24):
+    """Merges two sets of intervals smartly if the boundary gap is too short."""
     if len(intervals1) > 0 and len(intervals2) > 0:
-        merged_first = intervals1[-1] + intervals2[0]  # Merge last of first set with first of second set
-        merged_intervals = np.concatenate([intervals1[:-1], [merged_first], intervals2[1:]])  # Combine properly
+        gap_sum = intervals1[-1] + intervals2[0]
+        if gap_sum < 0.2 * fps:
+            half = gap_sum / 2
+            merged_intervals = np.concatenate([
+                intervals1[:-1],
+                [intervals1[-2] + intervals1[-1] if len(intervals1) >= 2 else intervals1[-1] + half],
+                [half],
+                intervals2[1:] if len(intervals2) > 1 else []
+            ])
+        else:
+            merged_first = intervals1[-1] + intervals2[0]
+            merged_intervals = np.concatenate([
+                intervals1[:-1],
+                [merged_first],
+                intervals2[1:]
+            ])
     else:
-        merged_intervals = np.concatenate([intervals1, intervals2])  # In case one of them is empty
+        merged_intervals = np.concatenate([intervals1, intervals2])
 
     return merged_intervals
+
 
 
 def ar_predict(target_time=10.0):
