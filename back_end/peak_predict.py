@@ -52,7 +52,7 @@ def merge_intervals(intervals1, intervals2):
     """Merge intervals across a cut point, skipping short double-peak intervals."""
     if len(intervals1) > 0 and len(intervals2) > 0:
         gap_sum = intervals1[-1] + intervals2[0]
-        if gap_sum < 0.2:
+        if gap_sum < 0.25:
             merged_first = intervals2[0] + intervals2[1]  # merge into the next one only
             merged_intervals = np.concatenate([
                 intervals1,
@@ -85,7 +85,7 @@ def ar_predict(target_time=10.0):
 
     # ARIMA(p=8, d=0, q=0) is equivalent to AR with 8 lags.
     p = min(4, (len(train_data) // 2) - 1)
-    d = 0
+    d = 1
     q = 2  # allows small error correction
 
     model = ARIMA(train_data, order=(p, d, q))
