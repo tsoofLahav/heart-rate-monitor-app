@@ -52,7 +52,7 @@ def merge_intervals(intervals1, intervals2):
     """Merge intervals across a cut point, skipping short double-peak intervals."""
     if len(intervals1) > 0 and len(intervals2) > 0:
         gap_sum = intervals1[-1] + intervals2[0]
-        if gap_sum < 0.25:
+        if gap_sum < 0.15:
             merged_first = intervals2[0] + intervals2[1]  # merge into the next one only
             merged_intervals = np.concatenate([
                 intervals1,
