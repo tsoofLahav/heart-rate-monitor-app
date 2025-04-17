@@ -86,7 +86,7 @@ def ar_predict(target_time=10.0):
     # ARIMA(p=8, d=0, q=0) is equivalent to AR with 8 lags.
     p = min(4, (len(train_data) // 2) - 1)
     d = 0
-    q = 4  # allows small error correction
+    q = 2  # allows small error correction
 
     model = ARIMA(train_data, order=(p, d, q))
     model_fit = model.fit()
