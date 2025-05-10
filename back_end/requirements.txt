@@ -1,0 +1,10 @@
+Flask~=3.1.0
+Werkzeug>=3.0.0
+numpy>=1.23.5,<2.0
+gunicorn==22.0.0
+scipy~=1.13.1
+plotext~=5.3.2
+opencv-python-headless==4.8.1.78
+fastdtw~=0.3.4
+statsmodels~=0.14.4
+pyodbc~=5.2.0
