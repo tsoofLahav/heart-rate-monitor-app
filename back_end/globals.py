@@ -1,16 +1,23 @@
 # video_route
-concatenated_intensities = []
+raw_buffer = []
+peak_history = []
 round_count = 0
-reference_signal = None
+prediction_buffer = []
+testing_mode = True
 
-# filter
-history = None
+# data_route
+session_id = None
 
-# peak_predict
-past_intervals = None
+# models
+mlp_model = None
+input_size = 48
+reconstruction_model = None
+predictor_model = None
 
-# more calculations
-average_gap = None
 
-# only testing mode
-list_intervals_lists = []
+def reset_all():
+    global raw_buffer, peak_history, round_count, prediction_buffer
+    raw_buffer = []
+    peak_history = []
+    round_count = 0
+    prediction_buffer = []
