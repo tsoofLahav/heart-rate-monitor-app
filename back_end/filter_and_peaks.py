@@ -53,7 +53,7 @@ def denoise_ppg(raw_signal, fs):
         label = classify_signal_segment(segment)  # 0 = bad, 1 = good
         classifications.append((i, label))
 
-    # Step 4: Decision Logic
+    # Step 4: Decision Logic.
     bad_windows = [i for i, label in classifications if label == 0]
 
     if len(bad_windows) >= 2:

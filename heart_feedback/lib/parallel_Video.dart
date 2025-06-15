@@ -1,17 +1,9 @@
-// Full refactored code based on your original with structure and timing logs
-// Divided into: feedback loop, recording loop, break logic, and UI
-// Keeps original content and adds structure + logs
-
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
-import 'guessing_screen.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io';
-
 
 class BiofeedbackScreen extends StatefulWidget {
   final String mode;
@@ -24,42 +16,40 @@ class BiofeedbackScreen extends StatefulWidget {
 class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   CameraController? _cameraController;
   bool _isRecording = false;
-  List<double> _timeIntervals = [];
   int _bpm = 0;
   bool _unstableReading = false;
   bool _loading = false;
   bool _serverError = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
-  Future<Map<String, dynamic>>? _previousResponse;
   Map<String, dynamic>? _nextResponse;
   int _sessionId = 0;
-  int lastPlaybackStartMillis = DateTime.now().millisecondsSinceEpoch;
-
-  Future<String> getDeviceSource() async {
-    final deviceInfo = DeviceInfoPlugin();
-
-    if (Platform.isAndroid) {
-      final info = await deviceInfo.androidInfo;
-      return "android_${info.model}_${info.id}";
-    } else if (Platform.isIOS) {
-      final info = await deviceInfo.iosInfo;
-      return "ios_${info.name}_${info.identifierForVendor}";
-    } else {
-      return "unknown_device";
-    }
-  }
-
+  List<double> _timeIntervals = [];
+  int _playbackReferenceTime = 0;
 
   @override
   void initState() {
     super.initState();
     _initCamera();
+    _startSession();
+  }
+
+  Future<void> _startSession() async {
+    final uri = Uri.parse("https://backappmonitor-gwhubscvb6bab4hq.israelcentral-01.azurewebsites.net/data/start_session");
+    try {
+      final response = await http.post(uri);
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        _sessionId = jsonResponse['session_id'] ?? 0;
+        print("📡 Session started with ID: $_sessionId");
+      }
+    } catch (e) {
+      print("❌ Failed to start session: $e");
+    }
   }
 
   Future<void> _initCamera() async {
     final cameras = await availableCameras();
-    final backCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.back);
+    final backCamera = cameras.firstWhere((camera) => camera.lensDirection == CameraLensDirection.back);
 
     _cameraController = CameraController(
       backCamera,
@@ -72,55 +62,33 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     await _cameraController!.setExposureMode(ExposureMode.auto);
     await _cameraController!.setFocusMode(FocusMode.auto);
     await _cameraController!.lockCaptureOrientation();
+    await _cameraController!.setFlashMode(FlashMode.torch);
 
     setState(() {});
   }
 
   Future<void> _startBiofeedback() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-    await _createNewSession();
-    if (_sessionId == 0) return;
     _isRecording = true;
     _runCycle();
     setState(() {});
   }
 
-  Future<void> _createNewSession() async {
-    final source = await getDeviceSource();
-
-    var url = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/start_session");
-    var response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: json.encode({"source": source}),
-    );
-
-    if (response.statusCode == 200) {
-      var jsonResponse = json.decode(response.body);
-      setState(() => _sessionId = jsonResponse["session_id"]);
-    } else {
-      print("❌ Failed to create session: ${response.body}");
-    }
-  }
-
-
   Future<void> _runCycle() async {
     while (_isRecording) {
-      final int cycleStart = DateTime.now().millisecondsSinceEpoch;
-      _recordingLoop();
-      _feedbackLoop();
+      await _cameraController!.startVideoRecording();
+      final peakPlayback = _playPeaks(_timeIntervals);
       await Future.delayed(Duration(seconds: 5));
       await _runBreak();
-      final int cycleEnd = DateTime.now().millisecondsSinceEpoch;
-      print("⏱️ Full cycle time: ${cycleEnd - cycleStart} ms");
+      await peakPlayback;
     }
   }
 
   Future<void> _runBreak() async {
     final int breakStart = DateTime.now().millisecondsSinceEpoch;
+    _playbackReferenceTime = breakStart;
     try {
       final file = await _stopRecording();
-      _sendVideoToBackend(file);
+      await _sendVideoToBackend(file);
       if (_nextResponse != null) {
         _handleBackendResponse(_nextResponse!);
         _nextResponse = null;
@@ -129,16 +97,8 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
       print("⚠️ Break error: $e");
     }
     final int breakEnd = DateTime.now().millisecondsSinceEpoch;
-    print("🔧 Break duration: ${breakEnd - breakStart} ms");
-  }
-
-  Future<void> _recordingLoop() async {
-    try {
-      await _cameraController!.setFlashMode(FlashMode.torch);
-      await _cameraController!.startVideoRecording();
-    } catch (e) {
-      print("🎥 Error starting recording: $e");
-    }
+    final int breakDuration = breakEnd - breakStart;
+    print("🔧 Break duration: $breakDuration ms");
   }
 
   Future<String> _stopRecording() async {
@@ -151,24 +111,17 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     }
   }
 
-  void _sendVideoToBackend(String filePath) {
-    var uri = Uri.parse("https://monitorflaskbackend-aaadajegfjd7b9hq.israelcentral-01.azurewebsites.net/process_video");
+  Future<void> _sendVideoToBackend(String filePath) async {
+    var uri = Uri.parse("https://backappmonitor-gwhubscvb6bab4hq.israelcentral-01.azurewebsites.net/process_video");
     var request = http.MultipartRequest('POST', uri);
-    http.MultipartFile.fromPath('video', filePath).then((file) {
-      request.files.add(file);
-      final sentAt = DateTime.now().millisecondsSinceEpoch;
-      _previousResponse = request.send().then<Map<String, dynamic>>((response) async {
-        final receivedAt = DateTime.now().millisecondsSinceEpoch;
-        print("📨 Response received after ${receivedAt - sentAt} ms");
-        if (response.statusCode == 200) {
-          var jsonResponse = await response.stream.bytesToString();
-          _nextResponse = json.decode(jsonResponse);
-        }
-        return {};
-      }).catchError((e) {
-        print("❌ Error sending video: $e");
-        return <String, dynamic>{};
-      });
+    request.files.add(await http.MultipartFile.fromPath('video', filePath));
+    request.send().then((response) async {
+      if (response.statusCode == 200) {
+        var jsonResponse = await response.stream.bytesToString();
+        _nextResponse = json.decode(jsonResponse);
+      }
+    }).catchError((e) {
+      print("❌ Error sending video: $e");
     });
   }
 
@@ -191,30 +144,35 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
       setState(() => _unstableReading = data["not_reading"]);
       return;
     }
-    if (data.containsKey("bpm") && data.containsKey("intervals")) {
+    if (data.containsKey("bpm") && data.containsKey("prediction")) {
       setState(() {
         _bpm = data["bpm"].toInt();
-        _timeIntervals = List<double>.from(data["intervals"])
-            .map((interval) => (interval - 0.05).clamp(0.0, double.infinity))
-            .toList();
+        _timeIntervals = List<double>.from(data["prediction"]);
       });
     }
   }
 
-  Future<void> _feedbackLoop() async {
-    if (_timeIntervals.length < 2) return;
+  Future<void> _playPeaks(List<double> peaks) async {
+    final int referenceTime = _playbackReferenceTime;
+    List<Future<void>> tasks = [];
 
-    int playbackStart = DateTime.now().millisecondsSinceEpoch;
-    await Future.delayed(Duration(milliseconds: (_timeIntervals[0] * 1000).toInt()));
+    for (double peak in peaks) {
+      int targetTime = referenceTime + (peak * 1000).toInt();
+      int delay = targetTime - DateTime.now().millisecondsSinceEpoch;
 
-    for (int i = 1; i < _timeIntervals.length - 1; i++) {
-      int now = DateTime.now().millisecondsSinceEpoch;
-      print("🔔 Beat $i at ${now - playbackStart} ms");
-      await _audioPlayer.play(AssetSource('boom.wav'));
-      await Future.delayed(Duration(milliseconds: (_timeIntervals[i] * 1000).toInt()));
+      if (delay <= 0) {
+        await _audioPlayer.play(AssetSource('boom.wav'));
+        print("🔔 Played immediately at \${DateTime.now().millisecondsSinceEpoch - referenceTime} ms");
+      } else {
+        tasks.add(Future.delayed(Duration(milliseconds: delay), () async {
+          await _audioPlayer.play(AssetSource('boom.wav'));
+          print("🔔 Played at \${DateTime.now().millisecondsSinceEpoch - referenceTime} ms");
+        }));
+      }
     }
-  }
 
+    await Future.wait(tasks);
+  }
 
   Future<void> _stopBiofeedback() async {
     if (_isRecording) {
@@ -225,13 +183,22 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
         print("Error stopping video recording: $e");
       }
       await _cameraController!.setFlashMode(FlashMode.off);
+      await _endSession();
       setState(() {});
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => GuessingScreen(sessionId: _sessionId)),
-      );
     }
   }
+
+  Future<void> _endSession() async {
+    final uri = Uri.parse("https://backappmonitor-gwhubscvb6bab4hq.israelcentral-01.azurewebsites.net/data/end_session");
+    try {
+      await http.post(uri, body: json.encode({"session_id": _sessionId}), headers: {"Content-Type": "application/json"});
+      print("✅ Session ended");
+    } catch (e) {
+      print("❌ Failed to end session: $e");
+    }
+  }
+
+
 
   @override
   void dispose() {
@@ -246,7 +213,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     if (_loading) message = "Loading...";
     else if (_serverError) message = "Error, please restart the app or ask for support";
     else if (_unstableReading) message = "Please don't move/ place your finger";
-    else if (_bpm > 0) message = "BPM: $_bpm";
+    else if (_bpm > 0) message = "BPM: \$_bpm";
 
     return Scaffold(
       backgroundColor: Colors.black,
