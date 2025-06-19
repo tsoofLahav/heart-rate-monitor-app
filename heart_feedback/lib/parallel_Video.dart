@@ -1,3 +1,5 @@
+// Updated version of BiofeedbackScreen with clean state machine, dual players, and backend cancellation
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -19,15 +21,18 @@ class BiofeedbackScreen extends StatefulWidget {
 class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   CameraController? _cameraController;
   bool _isRunning = false;
-  bool _loading = false;
+  bool _isStopping = false;
   bool _unstable = false;
   bool _serverError = false;
   int _bpm = 0;
-  double _loadingProgress = 0.0;
-  Timer? _loadingTimer;
-  bool _isLoadingAnimationRunning = false;
   File? _nextAudioFile;
-  bool _connectionTimeout = false;
+  AudioPlayer? _player1;
+  AudioPlayer? _player2;
+  bool _useFirstPlayer = true;
+  int _lastRequestTime = 0;
+  Timer? _loadingTimer;
+  double _loadingProgress = 0.0;
+  bool _isLoadingAnimationRunning = false;
 
   @override
   void initState() {
@@ -38,70 +43,40 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
   Future<void> _initCamera() async {
     final cameras = await availableCameras();
     final backCamera = cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back);
-    _cameraController = CameraController(backCamera, ResolutionPreset.medium,
-        enableAudio: false, imageFormatGroup: ImageFormatGroup.yuv420);
+    _cameraController = CameraController(backCamera, ResolutionPreset.medium, enableAudio: false, imageFormatGroup: ImageFormatGroup.yuv420);
     await _cameraController!.initialize();
     setState(() {});
   }
 
   Future<void> _startBiofeedback() async {
+    _isStopping = false;
+    _bpm = 0;
+    _unstable = false;
+    _serverError = false;
+    _nextAudioFile = null;
+    _startLoadingAnimation();
+
     await http.get(Uri.parse('https://myheartapp-frcvaecxddehf6gm.israelcentral-01.azurewebsites.net/load_models'));
     await _cameraController!.setFlashMode(FlashMode.torch);
     _isRunning = true;
-    setState(() {
-      _loading = true;
-      _startLoadingAnimation();
-    });
     _runCycle();
   }
 
-  Future<void> _stopBiofeedback() async {
-    _isRunning = false;
-    if (_cameraController?.value.isRecordingVideo == true) {
-      await _cameraController!.stopVideoRecording();
-    }
-    await _cameraController?.setFlashMode(FlashMode.off);
-
-    try {
-      final response = await http.post(Uri.parse('https://myheartapp-frcvaecxddehf6gm.israelcentral-01.azurewebsites.net/end'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        SessionDataManager().saveSessionData(data);
-      } else {
-        print("❌ Backend end session error: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("❌ Failed to end session: $e");
-    }
-
-    setState(() {
-      _loading = false;
-      _serverError = false;
-      _unstable = false;
-      _loadingProgress = 0.0;
-      _isLoadingAnimationRunning = false;
-    });
-  }
-
-
   Future<void> _runCycle() async {
-    while (_isRunning) {
-      await _cameraController!.startVideoRecording();
-
-      // Play next audio if available
+    while (_isRunning && !_isStopping) {
+      // Play audio early (begins before next recording)
       if (_nextAudioFile != null) {
-        try {
-          SessionDataManager().addAudioStartSignal(valid: true);
-          final player = AudioPlayer();
-          await player.play(DeviceFileSource(_nextAudioFile!.path));
-        } catch (e) {
-          print("\u274c Audio playback failed: $e");
-        }
+        final player = _useFirstPlayer ? (_player1 = AudioPlayer()) : (_player2 = AudioPlayer());
+        _useFirstPlayer = !_useFirstPlayer;
+        player.play(DeviceFileSource(_nextAudioFile!.path));
+        SessionDataManager().addAudioStartSignal(valid: true);
         _nextAudioFile = null;
       } else {
         SessionDataManager().addAudioStartSignal(valid: false);
       }
 
+      // State 1: Record 3 sec
+      await _cameraController!.startVideoRecording();
       await Future.delayed(Duration(seconds: 3));
 
       XFile? file;
@@ -109,45 +84,28 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
         file = await _cameraController!.stopVideoRecording();
       }
 
+      // State 2: Break + backend request
       if (file != null) {
-        _sendToBackend(file.path);
+        final requestTime = DateTime.now().millisecondsSinceEpoch;
+        _lastRequestTime = requestTime;
+        _sendToBackend(file.path, requestTime);
       }
 
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(Duration(milliseconds: 490));
     }
   }
 
-  Future<void> _sendToBackend(String filePath) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://myheartapp-frcvaecxddehf6gm.israelcentral-01.azurewebsites.net/process_video'),
-    );
+  Future<void> _sendToBackend(String filePath, int requestTime) async {
+    if (_isStopping) return;
+
+    final request = http.MultipartRequest('POST', Uri.parse('https://myheartapp-frcvaecxddehf6gm.israelcentral-01.azurewebsites.net/process_video'));
     request.files.add(await http.MultipartFile.fromPath('video', filePath));
-
-    final startTime = DateTime.now().millisecondsSinceEpoch;
-    print("📤 Sent to backend at $startTime");
-
-    bool responded = false;
-
-    Future.delayed(const Duration(milliseconds: 480), () {
-      if (!responded) {
-        setState(() {
-          _connectionTimeout = true;
-        });
-        _stopBiofeedback();
-      }
-    });
 
     try {
       final response = await request.send();
-      responded = true;
-
-      final endTime = DateTime.now().millisecondsSinceEpoch;
-      print("📥 Response received at $endTime");
-      print("⏱️ Total round-trip time: ${endTime - startTime} ms");
+      if (_isStopping || requestTime != _lastRequestTime) return;
 
       final contentType = response.headers['content-type'];
-
       if (contentType != null && contentType.contains('audio/wav')) {
         final audioBytes = await response.stream.toBytes();
         final bpmHeader = response.headers['x-bpm'];
@@ -156,29 +114,67 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
         final savePath = '${tempDir.path}/next.wav';
         final file = await File(savePath).writeAsBytes(audioBytes);
 
+        if (!mounted || _isStopping) return;
         setState(() {
           _nextAudioFile = file;
           _bpm = double.tryParse(bpmHeader ?? '')?.toInt() ?? 0;
-          _loading = false;
-          _connectionTimeout = false; // clear if success
         });
       } else {
         final text = await response.stream.bytesToString();
         final data = json.decode(text);
 
+        if (!mounted || _isStopping || requestTime != _lastRequestTime) return;
         setState(() {
-          _loading = data['loading'] == true;
           _serverError = data['server_error'] == true;
           _unstable = data['not_reading'] == true;
-          _isLoadingAnimationRunning = !_loading;
-          _connectionTimeout = false;
+          if (_serverError || _unstable) _bpm = 0;
         });
       }
     } catch (e) {
-      print("\u274c Backend error: $e");
+      print("❌ Backend error: $e");
     }
   }
 
+  Future<void> _stopBiofeedback() async {
+    _isStopping = true;
+    _isRunning = false;
+    _discardResources();
+    await _cameraController?.setFlashMode(FlashMode.off);
+
+    try {
+      final response = await http.post(Uri.parse('https://myheartapp-frcvaecxddehf6gm.israelcentral-01.azurewebsites.net/end'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        SessionDataManager().saveSessionData(data);
+      }
+    } catch (e) {
+      print("❌ Failed to end session: $e");
+    }
+
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _discardResources() {
+    _player1?.stop();
+    _player2?.stop();
+    _player1?.dispose();
+    _player2?.dispose();
+    _player1 = null;
+    _player2 = null;
+    _loadingTimer?.cancel();
+    _loadingProgress = 0.0;
+    _isLoadingAnimationRunning = false;
+  }
+
+  @override
+  void dispose() {
+    _isRunning = false;
+    _isStopping = true;
+    _discardResources();
+    _cameraController?.dispose();
+    super.dispose();
+  }
 
   void _startLoadingAnimation() {
     if (_isLoadingAnimationRunning) return;
@@ -190,6 +186,10 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     final int totalSteps = (9500 / duration.inMilliseconds).round();
 
     _loadingTimer = Timer.periodic(duration, (timer) {
+      if (!mounted || _isStopping) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         _loadingProgress += 1.0 / totalSteps;
         if (_loadingProgress >= 1.0) {
@@ -201,27 +201,21 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
     });
   }
 
-
-  @override
-  void dispose() {
-    _cameraController?.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     String message;
-
-    if (_connectionTimeout) {
-      message = "Internet not stable enough";
+    if (_isStopping) {
+      message = "finished";
     } else if (_serverError) {
       message = "Error, restart app";
     } else if (_unstable) {
-      message = "Unstable, starting over, please hold still";
+      message = "Unstable, stay steady";
     } else if (_bpm > 0) {
       message = "BPM: $_bpm";
+    } else if (_isRunning) {
+      message = "Loading...";
     } else {
-      message = "Put finger on camera gently and press Start";
+      message = "Cover lens gently with finger and press Start";
     }
 
     return Scaffold(
@@ -241,7 +235,7 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
             ),
           ),
           SizedBox(height: 80),
-          _isRunning && _loading
+          _isRunning && _isLoadingAnimationRunning
               ? Column(
                   children: [
                     SizedBox(
@@ -254,39 +248,25 @@ class _BiofeedbackScreenState extends State<BiofeedbackScreen> {
                       ),
                     ),
                     SizedBox(height: 12),
-                    Text(
-                      "Loading...",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+                    Text("Loading...", style: TextStyle(color: Colors.white, fontSize: 16)),
                   ],
                 )
               : Text(
                   message,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _serverError ? Colors.red : Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _serverError ? Colors.red : Colors.white),
                   textAlign: TextAlign.center,
                 ),
           SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
-                onPressed: _isRunning ? null : _startBiofeedback,
-                child: Text('Play'),
-              ),
+              ElevatedButton(onPressed: _isRunning ? null : _startBiofeedback, child: Text('Play')),
               SizedBox(width: 20),
-              ElevatedButton(
-                onPressed: _isRunning ? _stopBiofeedback : null,
-                child: Text('Stop'),
-              ),
+              ElevatedButton(onPressed: _isRunning ? _stopBiofeedback : null, child: Text('Stop')),
             ],
           ),
         ],
       ),
     );
   }
-
 }

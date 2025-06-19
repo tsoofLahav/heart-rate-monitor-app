@@ -2,25 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera for analysis.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to your microphone for audio recording.</string>
-	<key>NSDocumentsDirectoryUsageDescription</key>
-	<string>This app needs access to save and load audio files.</string>
-
-	<key>UIFileSharingEnabled</key>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-
-	<key>NSCameraUsageDescription</key>
-	<string>Allow camera access to record video.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow microphone access for audio recording.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to the camera to read the user's heart rate.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -43,6 +26,18 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to the camera to read the user's heart rate.</string>
+	<key>NSDocumentsDirectoryUsageDescription</key>
+	<string>This app needs access to save and load audio files.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow microphone access for audio recording.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -60,9 +55,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
 </dict>
 </plist>
