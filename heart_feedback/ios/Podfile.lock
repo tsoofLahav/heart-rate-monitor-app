@@ -17,6 +17,8 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - share_plus (0.0.1):
+    - Flutter
   - torch_light (0.0.1):
     - Flutter
   - vibration (3.0.0):
@@ -34,6 +36,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_soloud (from `.symlinks/plugins/flutter_soloud/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - torch_light (from `.symlinks/plugins/torch_light/ios`)
   - vibration (from `.symlinks/plugins/vibration/ios`)
   - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
@@ -59,6 +62,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_soloud/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  share_plus:
+    :path: ".symlinks/plugins/share_plus/ios"
   torch_light:
     :path: ".symlinks/plugins/torch_light/ios"
   vibration:
@@ -76,6 +81,7 @@ SPEC CHECKSUMS:
   flutter_soloud: 12a37f5fb426c94671d762cbb059bbeb1b46ad97
   JPSVolumeButtonHandler: 53110330c9168ed325def93eabff39f0fe3e8082
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
+  share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
   torch_light: 682062fa12102172fa38b6b14c106d93b060f83e
   vibration: 3797858f8cbf53d841e189ef8bd533d96e4ca93c
   video_player_avfoundation: 7c6c11d8470e1675df7397027218274b6d2360b3

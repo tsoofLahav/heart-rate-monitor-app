@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'parallel_Video.dart';
 import 'history.dart';
+import 'pilote_data.dart';
 
 class SelectionScreen extends StatelessWidget {
   @override
@@ -39,7 +40,10 @@ class SelectionScreen extends StatelessWidget {
                   );
                 }),
                 _buildIconButton(context, 'assets/profile_icon.png', () {
-                  Navigator.pushNamed(context, '/profile');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SessionDataPage()),
+                  );
                 }),
               ],
             ),
